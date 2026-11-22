@@ -18,6 +18,7 @@ const digestsFile = path.join(root, 'data', 'digests.json');
 const pagesFile = path.join(root, 'data', 'pages.json');  // every AI-written article page, kept permanently
 
 const DOMAIN = 'jatimsepekan.com';
+const ADSENSE_CLIENT = 'ca-pub-4160138577851742';  // Google AdSense publisher ID
 const EDITION_DAYS = 7;          // one edition = the last 7 days
 const KEEP_DAYS = 8;             // the archive keeps a little more than one edition
 const MAX_PER_SOURCE_PER_DAY = 25; // so one busy site cannot fill a whole day
@@ -798,9 +799,14 @@ async function main() {
   for (const file of ['style.css', 'app.js']) {
     versions[file] = createHash('sha1').update(await readFile(path.join(root, 'src', file))).digest('hex').slice(0, 8);
   }
+  // Google AdSense: its code goes into every public page (ads show only once AdSense approves the
+  // site and they are switched on there). "iklan": false in kontrol.json removes it.
+  const adsCode = control.iklan === false ? ''
+    : `  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT}" crossorigin="anonymous"></script>\n`;
   const withVersions = (html, prefix) => html
     .replace(`href="${prefix}style.css"`, `href="${prefix}style.css?v=${versions['style.css']}"`)
-    .replace(`src="${prefix}app.js"`, `src="${prefix}app.js?v=${versions['app.js']}"`);
+    .replace(`src="${prefix}app.js"`, `src="${prefix}app.js?v=${versions['app.js']}"`)
+    .replace('</head>', () => (html.includes('noindex') ? '' : adsCode) + '</head>');
 
   // One page per AI-written official release.
   const storyTemplate = withVersions(await readFile(path.join(root, 'src', 'article.html'), 'utf8'), '../');
@@ -862,6 +868,11 @@ async function main() {
   await mkdir(path.join(dist, 'laporan'), { recursive: true });
   await writeFile(path.join(dist, 'laporan', 'index.html'), withVersions(report, '../'));
   if (process.env.GITHUB_STEP_SUMMARY) await writeFile(process.env.GITHUB_STEP_SUMMARY, reportSummary(sources, articles), { flag: 'a' });
+
+  // ads.txt tells advertisers that Google may sell ads on this site.
+  if (control.iklan !== false) {
+    await writeFile(path.join(dist, 'ads.txt'), `google.com, ${ADSENSE_CLIENT.replace('ca-', '')}, DIRECT, f08c47fec0942fa0\n`);
+  }
 
   // Backup copies of the saved pages and wrap-ups (see readSaved).
   await mkdir(path.join(dist, 'data'), { recursive: true });

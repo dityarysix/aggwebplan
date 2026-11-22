@@ -4,6 +4,7 @@
   "artikelAI": true,
   "ringkasanHarian": true,
   "ringkasanSepekan": true,
+  "iklan": true,
 
   "kataTerlarang": [],
   "tautanDihapus": [],

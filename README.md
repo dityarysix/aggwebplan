@@ -75,6 +75,7 @@ the next hourly update.
 | `artikelAI` | AI articles from official releases on/off | `false` |
 | `ringkasanHarian` | daily wrap-up on/off | `false` |
 | `ringkasanSepekan` | weekly wrap-up on/off | `false` |
+| `iklan` | Google AdSense code and ads.txt on/off (removes all ads) | `false` |
 | `kataTerlarang` | hide every story whose headline contains one of these words | `["judi online", "Honda"]` |
 | `tautanDihapus` | remove specific stories or pages: paste the story's link, or an AI page address from the report | `["https://jatimsepekan.com/berita/....html"]` |
 | `sumberDijeda` | pause sources (names as in the footer); their stories are hidden too | `["Malang Voice"]` |
