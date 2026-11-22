@@ -196,6 +196,32 @@
     story.appendChild(text);
   }
 
+  // The latest "Catatan Sepekan" column, on Sorotan Utama only (in Indonesian).
+  function renderColumn() {
+    var section = document.getElementById('column');
+    var card = document.getElementById('column-card');
+    var c = (data.columns || [])[0];
+    section.hidden = !c || state.section !== 'utama' || state.lang === 'en';
+    card.replaceChildren();
+    if (section.hidden) return;
+    var h = el('h3', 'title');
+    var a = el('a', null, c.title);
+    a.href = c.page;
+    h.appendChild(a);
+    card.appendChild(h);
+    var meta = el('p', 'meta');
+    meta.appendChild(el('b', null, c.author));
+    meta.appendChild(document.createTextNode(', ' + fmt(new Date(c.date), { weekday: 'long', day: 'numeric', month: 'long' })));
+    card.appendChild(meta);
+    card.appendChild(el('p', 'para', c.summary));
+    var more = el('a', 'more', 'Baca catatan');
+    more.href = c.page;
+    card.appendChild(more);
+    var all = el('a', 'column__all', 'Semua catatan');
+    all.href = 'catatan/';
+    card.appendChild(all);
+  }
+
   function renderHighlights(articles) {
     var section = document.getElementById('highlights');
     var grid = document.getElementById('highlights-grid');
@@ -340,6 +366,7 @@
     }
     renderLead(featured[0]);
     renderHighlights(featured.slice(1));
+    renderColumn();
     renderDays(listed.filter(function (a) { return featured.indexOf(a) < 0; }));
     if (!articles.length) renderEmpty();
   }

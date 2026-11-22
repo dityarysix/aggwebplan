@@ -9,6 +9,7 @@ import Parser from 'rss-parser';
 import { EnvHttpProxyAgent, setGlobalDispatcher } from 'undici';
 import { canRewrite, writeStory } from './rewrite.mjs';
 import { writeDigest } from './digest.mjs';
+import { readColumns } from './columns.mjs';
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const dist = path.join(root, 'dist');
@@ -79,6 +80,8 @@ function dropDateline(text) {
 function tidySummary(text = '') {
   return text
     .replace(/^Ringkasan Berita\s*\*?\s*/i, '')
+    .replace(/^[A-Z][\w.]*(?:\s[A-Z][\w.]*){0,2}\s+[–—]\s+/, '')  // "Malang Post – " at the start
+    .split(/\s+The post\s/)[0]  // WordPress feeds end with "The post ... appeared first on ..."
     .split(/\s+--\s+|\s*(?:Ikuti kami|Baca juga|Simak juga|Simak berita|Dapatkan update|Klik di sini)\b/i)[0]
     .replace(/(?:👉\s*)?https?:\/\/\S+/g, '')
     .replace(/\s+([.,;:])/g, '$1')
@@ -395,12 +398,12 @@ function renderStoryPage(template, a) {
     IMAGE: a.image ? `<figure class="story__image"><img src="${escapeHtml(a.image)}" alt="" referrerpolicy="no-referrer"></figure>` : '',
     OG_IMAGE: a.image ? `<meta property="og:image" content="${escapeHtml(a.image)}">` : '',
     RUBRIC: 'Rilis resmi',
-    NOTE: `Berita ini disusun ulang dengan bantuan AI dari siaran pers resmi ${escapeHtml(a.source)}. Fakta, nama, dan angka berasal dari siaran pers tersebut.`,
+    NOTE: `<p class="story__note">Berita ini disusun ulang dengan bantuan AI dari siaran pers resmi ${escapeHtml(a.source)}. Fakta, nama, dan angka berasal dari siaran pers tersebut.</p>`,
     SOURCE: escapeHtml(a.source),
     DATE: escapeHtml(longDate(a.date)),
     DATETIME: escapeHtml(a.date),
     BODY: paragraphs.join('\n      '),
-    SITES: escapeHtml(sites.join(', ')),
+    SOURCES: `<p class="story__sources">Sumber: ${escapeHtml(sites.join(', '))}</p>`,
   };
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) => fill[key] ?? '');
 }
@@ -485,12 +488,12 @@ function renderDigestPage(template, d) {
     IMAGE: d.image ? `<figure class="story__image"><img src="${escapeHtml(d.image)}" alt="" referrerpolicy="no-referrer"></figure>` : '',
     OG_IMAGE: d.image ? `<meta property="og:image" content="${escapeHtml(d.image)}">` : '',
     RUBRIC: DIGEST_LABEL[d.kind],
-    NOTE: 'Ringkasan ini ditulis dengan bantuan AI dari berita yang dikumpulkan Jawa Timur Sepekan. Setiap berita ditautkan ke sumber aslinya.',
+    NOTE: '<p class="story__note">Ringkasan ini ditulis dengan bantuan AI dari berita yang dikumpulkan Jawa Timur Sepekan. Setiap berita ditautkan ke sumber aslinya.</p>',
     SOURCE: 'Redaksi Jawa Timur Sepekan',
     DATE: escapeHtml(longDate(d.date)),
     DATETIME: escapeHtml(d.date),
     BODY: d.paragraphs.map((p) => `<p>${p.link ? linkLastWords(p.text, p.link) : escapeHtml(p.text)}</p>`).join('\n      '),
-    SITES: escapeHtml(sites.join(', ')),
+    SOURCES: `<p class="story__sources">Sumber: ${escapeHtml(sites.join(', '))}</p>`,
   };
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) => fill[key] ?? '');
 }
@@ -519,6 +522,35 @@ ${items.map((d) => `        <li class="archive__item${d.kind === 'weekly' ? ' ar
       </ul>
     </section>`).join('\n    ');
   return template.replace('{{LIST}}', () => html);
+}
+
+// A "Catatan Sepekan" column page, written by the site's own editor (no AI, no sources line).
+function renderColumnPage(template, c) {
+  const fill = {
+    TITLE: escapeHtml(c.title),
+    DESCRIPTION: escapeHtml(c.summary.slice(0, 160)),
+    URL: `https://${DOMAIN}/${c.page}`,
+    IMAGE: c.image ? `<figure class="story__image"><img src="${escapeHtml(c.image)}" alt="" referrerpolicy="no-referrer"></figure>` : '',
+    OG_IMAGE: c.image ? `<meta property="og:image" content="${escapeHtml(c.image)}">` : '',
+    RUBRIC: 'Catatan Sepekan',
+    SOURCE: escapeHtml(c.author),
+    DATE: escapeHtml(longDate(c.date)),
+    DATETIME: escapeHtml(c.date),
+    BODY: c.html,
+    SOURCES: '',
+    NOTE: '',
+  };
+  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => fill[key] ?? '');
+}
+
+function renderColumnsPage(template, columns) {
+  if (!columns.length) return template.replace('{{LIST}}', '<p class="empty">Belum ada catatan.</p>');
+  const items = columns.map((c) => `        <li class="archive__item">
+          <p class="meta"><b>${escapeHtml(c.author)}</b>, <time datetime="${escapeHtml(c.date)}">${escapeHtml(longDate(c.date))}</time></p>
+          <h3 class="title"><a href="../${escapeHtml(c.page)}">${escapeHtml(c.title)}</a></h3>
+          <p class="para">${escapeHtml(shorten(c.summary, 240))}</p>
+        </li>`).join('\n');
+  return template.replace('{{LIST}}', () => `<ul class="archive__list">\n${items}\n    </ul>`);
 }
 
 // Writes articles for official releases that do not have one yet.
@@ -653,6 +685,16 @@ async function main() {
   if (digests.length) await mkdir(path.join(dist, 'berita'), { recursive: true });
   for (const d of digests) await writeFile(path.join(dist, d.page), renderDigestPage(storyTemplate, d));
 
+  // Catatan Sepekan: the editor's own columns, from catatan/*.md.
+  const columns = await readColumns(path.join(root, 'catatan'));
+  if (columns.length) await mkdir(path.join(dist, 'catatan'), { recursive: true });
+  for (const c of columns) await writeFile(path.join(dist, c.page), renderColumnPage(storyTemplate, c));
+  await mkdir(path.join(dist, 'catatan'), { recursive: true });
+  await writeFile(path.join(dist, 'catatan', 'index.html'),
+    renderColumnsPage(withVersions(await readFile(path.join(root, 'src', 'columns.html'), 'utf8'), '../'), columns));
+  if (columns.length) console.log(`  Catatan Sepekan: ${columns.length} published`);
+  data.columns = columns.slice(0, 1).map(({ html, ...c }) => ({ ...c, summary: shorten(c.summary, 320) }));
+
   const archiveTemplate = withVersions(await readFile(path.join(root, 'src', 'archive.html'), 'utf8'), '../');
   await mkdir(path.join(dist, 'arsip'), { recursive: true });
   await writeFile(path.join(dist, 'arsip', 'index.html'), renderArchivePage(archiveTemplate, digests));
@@ -662,6 +704,8 @@ async function main() {
   const urls = [
     { loc: `https://${DOMAIN}/`, lastmod: data.updated },
     { loc: `https://${DOMAIN}/arsip/`, lastmod: digests.at(-1)?.date || data.updated },
+    { loc: `https://${DOMAIN}/catatan/`, lastmod: columns[0]?.date || data.updated },
+    ...columns.map((c) => ({ loc: `https://${DOMAIN}/${c.page}`, lastmod: c.date })),
     ...digests.map((d) => ({ loc: `https://${DOMAIN}/${d.page}`, lastmod: d.date })),
     ...withPages.map((a) => ({ loc: `https://${DOMAIN}/${a.page}`, lastmod: a.date })),
   ];
