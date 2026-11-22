@@ -4,7 +4,9 @@
 import { readFile, writeFile, mkdir, copyFile, rm } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 import Parser from 'rss-parser';
+import { canRewrite, writeStory } from './rewrite.mjs';
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const dist = path.join(root, 'dist');
@@ -15,6 +17,8 @@ const EDITION_DAYS = 7;          // one edition = the last 7 days
 const KEEP_DAYS = 8;             // the archive keeps a little more than one edition
 const MAX_PER_SOURCE_PER_DAY = 25; // so one busy site cannot fill a whole day
 const SUMMARY_LENGTH = 200;      // characters
+const MAX_STORIES_PER_RUN = 15;  // AI-written articles per hourly run, to keep the cost predictable
+const BODY_LENGTH = 8000;        // characters of a press release kept for the AI writer
 const USER_AGENT = 'Mozilla/5.0 (compatible; JatimSepekan/0.2; +https://' + DOMAIN + ')';
 
 const parser = new Parser({
@@ -47,6 +51,18 @@ function dropDateline(text) {
     .replace(/^[^.!?]{0,40}?\(\s*\d{1,2}\/\d{1,2}(?:\/\d{2,4})?\s*\)\s*[-–—,]?\s*/, '');
 }
 
+// Removes promotional leftovers from a summary: links, "Ikuti kami di ...", "Baca juga ...",
+// and labels such as "Ringkasan Berita *".
+function tidySummary(text = '') {
+  return text
+    .replace(/^Ringkasan Berita\s*\*?\s*/i, '')
+    .split(/\s+--\s+|\s*(?:Ikuti kami|Baca juga|Simak juga|Simak berita|Dapatkan update|Klik di sini)\b/i)[0]
+    .replace(/(?:👉\s*)?https?:\/\/\S+/g, '')
+    .replace(/\s+([.,;:])/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function findImage(item) {
   const fromAttr = (x) => x && (x.$?.url || x.url);
   const candidates = [
@@ -73,11 +89,13 @@ async function fetchSource(source) {
       const title = clean(item.title);
       // some feeds repeat the headline at the start of the summary
       const body = summary.startsWith(title) ? summary.slice(title.length).replace(/^[^\p{L}\p{N}"'(]+/u, '') : summary;
+      const fullText = source.official ? paragraphsOf(item['content:encoded'] || item.content || '') : undefined;
       return {
         title,
+        body: fullText,
         link: (item.link || item.guid || '').trim(),
         date: isNaN(date) ? null : date.toISOString(),
-        summary: shorten(body, SUMMARY_LENGTH),
+        summary: shorten(tidySummary(body), SUMMARY_LENGTH),
         image: findImage(item),
         ...sourceFields(source),
       };
@@ -88,6 +106,16 @@ async function fetchSource(source) {
     console.log(`  FAIL      ${source.name} (${source.section}): ${err.cause?.message || err.message}`);
     return [];
   }
+}
+
+// A summary is a real sentence: long, with enough lower-case words (menu text is Title Case).
+const isSentence = (t) => t.length > 80
+  && t.split(/\s+/).filter((w) => /^[a-z]/.test(w)).length >= t.split(/\s+/).length * 0.25;
+
+// The readable paragraphs of an HTML fragment, joined with blank lines.
+function paragraphsOf(html) {
+  const parts = [...String(html).matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)].map((m) => clean(m[1])).filter(isSentence);
+  return [...new Set(parts)].join('\n\n').slice(0, BODY_LENGTH) || undefined;
 }
 
 function sourceFields(source) {
@@ -147,8 +175,7 @@ async function readArticle(url, source, linkText) {
   ].map((t) => (t || '').replace(/\s+[-|–]\s+(?:Pemerintah|Pemkab|Pemkot|Portal|Website|Diskominfo|Kominfo)\b[^|–]*$/i, ''))
     .find((t) => !generic(t)) || '';
   // A summary is a real sentence: long, with mostly lower-case words (menu text is Title Case).
-  const sentence = (t) => t.length > 80 && !t.startsWith(title)
-    && t.split(/\s+/).filter((w) => /^[a-z]/.test(w)).length >= t.split(/\s+/).length * 0.25;
+  const sentence = (t) => isSentence(t) && !t.startsWith(title);
   let summary = sentence(description) ? description : '';
   if (!summary) summary = [...page.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)].map((m) => clean(m[1])).find(sentence) || '';
   summary = dropDateline(summary);
@@ -157,6 +184,7 @@ async function readArticle(url, source, linkText) {
   const date = findDate(page, opening) || new Date();
   return {
     title,
+    body: paragraphsOf(page),
     link: url,
     date: date.toISOString(),
     summary: shorten(summary, SUMMARY_LENGTH),
@@ -233,20 +261,137 @@ function pickArticles(all, keepDays) {
     .filter((a) => new Date(a.date).getTime() >= oldest && new Date(a.date).getTime() <= Date.now() + 3600000)
     .sort((a, b) => b.date.localeCompare(a.date));
 
-  const seen = new Set();
+  const kept = new Map();
   const counts = {};
   const result = [];
   for (const a of newestFirst) {
-    // The same story often appears in several feeds: keep the first copy only.
+    // The same story often appears in several feeds: keep the first copy only, but carry over
+    // an article already written for it (the fresh copy from the feed does not have one).
     const key = a.section + '|' + a.title.toLowerCase().replace(/[^a-z0-9]+/g, '');
-    if (seen.has(key) || seen.has(a.section + '|' + a.link)) continue;
-    seen.add(key); seen.add(a.section + '|' + a.link);
+    const linkKey = a.section + '|' + a.link;
+    const earlier = kept.get(key) || kept.get(linkKey);
+    if (earlier) {
+      if (!earlier.story && a.story) earlier.story = a.story;
+      if (!earlier.body && a.body) earlier.body = a.body;
+      continue;
+    }
+    kept.set(key, a); kept.set(linkKey, a);
     const perDay = `${a.section}|${a.source}|${jakartaDay(a.date)}`;
     counts[perDay] = (counts[perDay] || 0) + 1;
     if (counts[perDay] > MAX_PER_SOURCE_PER_DAY) continue;
     result.push(a);
   }
   return result;
+}
+
+// "jatim.antaranews.com" -> "antaranews.com", "www.detik.com" -> "detik.com",
+// "sumenepkab.go.id" stays as it is (Indonesian second-level domains such as .go.id and .co.id).
+function siteName(link) {
+  const labels = new URL(link).hostname.replace(/^www\./, '').split('.');
+  const keep = /^(?:go|co|ac|or|web|my|sch|net)$/.test(labels.at(-2)) ? 3 : 2;
+  return labels.slice(-keep).join('.');
+}
+
+const STOPWORDS = new Set(('yang dengan untuk dari dalam pada akan oleh atas bagi para ini itu jadi lebih secara '
+  + 'kabupaten kota pemkab pemkot pemerintah jawa timur jatim tahun hari warga masyarakat juga telah sudah bisa '
+  + 'tidak menjadi saat setelah sebagai kepada antara karena masih adalah').split(' '));
+const keywords = (text) => new Set(text.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w.length >= 4 && !STOPWORDS.has(w)));
+const sharedCount = (a, b) => [...a].filter((w) => b.has(w)).length;
+
+// Same story: at least half of the headline keywords shared, and the headline plus summary
+// overlapping clearly. Headlines alone mix up a match preview with its result.
+function sameStory(a, b) {
+  if (a.section !== b.section || a.source === b.source) return false;
+  if (Math.abs(new Date(a.date) - new Date(b.date)) > 36 * 3600000) return false;
+  const ta = keywords(a.title), tb = keywords(b.title);
+  const inTitles = sharedCount(ta, tb);
+  if (inTitles < 2 || inTitles / Math.min(ta.size, tb.size) < 0.5) return false;
+  const fa = keywords(a.title + ' ' + a.summary), fb = keywords(b.title + ' ' + b.summary);
+  const inBoth = sharedCount(fa, fb);
+  return inBoth / (fa.size + fb.size - inBoth) >= 0.2;
+}
+
+// The same story is often reported by two outlets. Attach the second outlet's version to the
+// first ("also"), so the page shows one story with two sources. Official releases go first,
+// because they get their own article page.
+function groupSameStories(articles) {
+  const order = [...articles].sort((a, b) => (b.official ? 1 : 0) - (a.official ? 1 : 0) || b.date.localeCompare(a.date));
+  const primaries = [];
+  const absorbed = new Set();
+  for (const a of order) {
+    const match = primaries.find((p) => !p.also && sameStory(p, a));
+    if (match) {
+      match.also = { source: a.source, link: a.link, summary: a.summary, site: siteName(a.link), official: a.official || undefined };
+      absorbed.add(a);
+    } else primaries.push(a);
+  }
+  return articles.filter((a) => !absorbed.has(a));
+}
+
+const pageSlug = (a) => a.title.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 70)
+  + '-' + createHash('sha1').update(a.link).digest('hex').slice(0, 6);
+
+const escapeHtml = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+// Wraps the last three words of a paragraph in a link to the source.
+function linkLastWords(paragraph, href) {
+  const words = paragraph.split(' ');
+  const cut = Math.max(0, words.length - 3);
+  const lead = words.slice(0, cut).join(' ');
+  const tail = words.slice(cut).join(' ');
+  const trailing = tail.match(/[.,;:!?"”)]+$/)?.[0] || '';
+  const linked = trailing ? tail.slice(0, -trailing.length) : tail;
+  return `${escapeHtml(lead)}${lead ? ' ' : ''}<a href="${escapeHtml(href)}" rel="noopener">${escapeHtml(linked)}</a>${escapeHtml(trailing)}`;
+}
+
+const WEEKDAYS = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+const MONTH_NAMES = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+function longDate(iso) {
+  const d = new Date(new Date(iso).getTime() + 7 * 3600000);  // Jakarta time
+  return `${WEEKDAYS[d.getUTCDay()]}, ${d.getUTCDate()} ${MONTH_NAMES[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+}
+
+function renderStoryPage(template, a) {
+  // Paragraph 1 links to the official source; paragraph 2 to the second outlet, when there is one.
+  const paragraphs = a.story.map((p, i) => {
+    if (i === 0) return `<p>${linkLastWords(p, a.link)}</p>`;
+    if (i === 1 && a.also) return `<p>${linkLastWords(p, a.also.link)}</p>`;
+    return `<p>${escapeHtml(p)}</p>`;
+  });
+  const sites = [siteName(a.link), a.also?.site].filter(Boolean);
+  const fill = {
+    TITLE: escapeHtml(a.title),
+    DESCRIPTION: escapeHtml(a.story[0].slice(0, 160)),
+    URL: `https://${DOMAIN}/${a.page}`,
+    IMAGE: a.image ? `<figure class="story__image"><img src="${escapeHtml(a.image)}" alt="" referrerpolicy="no-referrer"></figure>` : '',
+    OG_IMAGE: a.image ? `<meta property="og:image" content="${escapeHtml(a.image)}">` : '',
+    SOURCE: escapeHtml(a.source),
+    DATE: escapeHtml(longDate(a.date)),
+    DATETIME: escapeHtml(a.date),
+    BODY: paragraphs.join('\n      '),
+    SITES: escapeHtml(sites.join(', ')),
+  };
+  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => fill[key] ?? '');
+}
+
+// Writes articles for official releases that do not have one yet.
+async function writeStories(archive) {
+  const waiting = archive.filter((a) => a.official && !a.story);
+  if (!waiting.length) return;
+  if (!canRewrite()) {
+    console.log(`  AI writing off (no ANTHROPIC_API_KEY): ${waiting.length} official releases keep their summary only`);
+    return;
+  }
+  let written = 0;
+  for (const a of waiting.slice(0, MAX_STORIES_PER_RUN)) {
+    if (!a.body) {  // saved before full texts were kept: read the release page once more
+      try { a.body = paragraphsOf(await get(a.link)); } catch { /* try again next run */ }
+      if (!a.body) continue;
+    }
+    const story = await writeStory(a);
+    if (story) { a.story = story; written++; }
+  }
+  console.log(`  AI writing: ${written} new articles (${Math.max(0, waiting.length - MAX_STORIES_PER_RUN)} left for the next run)`);
 }
 
 async function readArchive() {
@@ -275,19 +420,26 @@ async function main() {
   const candidates = [...fresh, ...previous.filter((a) => sections.has(a.section))].filter((a) => aboutEastJava(a, matchers));
   const archive = pickArticles(candidates, KEEP_DAYS);
   tagAreas(archive, matchers);
+  await writeStories(archive);
+  for (const a of archive) {
+    if (a.story) delete a.body;  // the full release text is only needed until the article is written
+    a.page = a.story ? `berita/${pageSlug(a)}.html` : undefined;
+  }
   if (archive.length === 0) throw new Error('No articles were collected. Check the network and sources.json.');
   await mkdir(path.dirname(archiveFile), { recursive: true });
   const seen = [...known].slice(-3000);
   await writeFile(archiveFile, JSON.stringify({ updated: new Date().toISOString(), articles: archive, seen }) + '\n');
 
   const editionStart = Date.now() - EDITION_DAYS * 86400000;
-  const articles = archive.filter((a) => new Date(a.date).getTime() >= editionStart);
+  const edition = archive.filter((a) => new Date(a.date).getTime() >= editionStart)
+    .map((a) => ({ ...a, summary: tidySummary(a.summary), also: undefined, body: undefined, homeArea: undefined, place: undefined, site: siteName(a.link) }));
+  const articles = groupSameStories(edition);
 
   const data = {
     updated: new Date().toISOString(),
     sources: [...new Set(sources.filter((s) => !s.official).map((s) => s.name))],
     official: [...new Set(sources.filter((s) => s.official).map((s) => s.name))],
-    articles,
+    articles: articles.map(({ story, ...rest }) => rest),  // the full article text lives on its own page
   };
 
   await rm(dist, { recursive: true, force: true });
@@ -305,6 +457,12 @@ async function main() {
   for (const file of ['style.css', 'app.js', 'favicon.svg']) await copyFile(path.join(root, 'src', file), path.join(dist, file));
   await writeFile(path.join(dist, 'CNAME'), DOMAIN + '\n'); // tells GitHub Pages which domain to answer
 
+  // One page per AI-written official release.
+  const storyTemplate = await readFile(path.join(root, 'src', 'article.html'), 'utf8');
+  const withPages = articles.filter((a) => a.story);
+  if (withPages.length) await mkdir(path.join(dist, 'berita'), { recursive: true });
+  for (const a of withPages) await writeFile(path.join(dist, a.page), renderStoryPage(storyTemplate, a));
+
   const json = JSON.stringify(data).replace(/</g, '\\u003c');
   const template = await readFile(path.join(root, 'src', 'index.html'), 'utf8');
   await writeFile(path.join(dist, 'index.html'), template.replace('__NEWS_DATA__', () => json));
@@ -312,7 +470,8 @@ async function main() {
   const count = (s) => articles.filter((a) => a.section === s).length;
   const inArea = (k) => articles.filter((a) => a.areas?.includes(k)).length;
   console.log(`Done: ${articles.length} articles this edition; archive holds ${archive.length} → dist/index.html`);
-  console.log(`  Official releases ${articles.filter((a) => a.official).length}`);
+  console.log(`  Official releases ${articles.filter((a) => a.official).length}, with their own article page ${withPages.length}`);
+  console.log(`  Stories reported by two outlets ${articles.filter((a) => a.also).length}`);
   console.log(`  Jawa Timur ${count('jatim')} (Surabaya Raya ${inArea('surabaya')}, Malang Raya ${inArea('malang')}, Madura ${inArea('madura')}, Mataraman ${inArea('mataraman')}), Dunia ${count('dunia')}`);
 }
 

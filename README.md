@@ -17,6 +17,13 @@ and links every headline to the original article. Each edition covers the last 7
     *Rilis resmi* label, always appear in its `area` tab, and are dropped when they do
     not mention `place` or another East Java area (government sites also repost
     national releases).
+- Every story shows its summary with the **last three words linked to the source**, then
+  "Sumber: site.com". When two outlets report the same story, both summaries appear,
+  each linking to its own outlet.
+- Official releases can get **their own article page** (`dist/berita/…`), written from the
+  release by Claude (`scripts/rewrite.mjs`). This needs an Anthropic API key in the
+  `ANTHROPIC_API_KEY` environment variable (a repository secret on GitHub). Without it,
+  official releases simply show their summary. At most 15 articles are written per run.
 - `areas.json` lists the place names for each area tab (Surabaya Raya, Malang Raya,
   Madura, Mataraman).
 - `scripts/build.mjs` downloads the feeds, adds new articles to the weekly archive

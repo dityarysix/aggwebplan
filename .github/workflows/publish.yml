@@ -39,6 +39,9 @@ jobs:
           restore-keys: archive-
 
       - run: npm run build
+        env:
+          # Optional: lets the build write articles from official releases (see README).
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
       - name: Save this week's archive
         uses: actions/cache/save@v4

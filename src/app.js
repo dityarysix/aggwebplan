@@ -19,6 +19,8 @@
       edition: 'Edisi',
       about: 'Jawa Timur Sepekan mengumpulkan judul dan ringkasan berita dari media tepercaya. Klik judul untuk membaca artikel lengkap di situs aslinya.',
       sources: 'Sumber',
+      sourceLine: 'Sumber',
+      readAt: function (site) { return 'Berita selengkapnya dapat dibaca di ' + site; },
       official: 'Rilis resmi',
       officialSources: 'Rilis resmi pemerintah daerah',
       updated: 'Diperbarui',
@@ -37,6 +39,8 @@
       edition: 'Edition',
       about: 'Jawa Timur Sepekan collects headlines and summaries from trusted news outlets. Click a headline to read the full article on the original site.',
       sources: 'Sources',
+      sourceLine: 'Source',
+      readAt: function (site) { return 'Read the full story at ' + site; },
       official: 'Official release',
       officialSources: 'Official releases from local governments',
       updated: 'Updated',
@@ -107,11 +111,45 @@
   function title(article, tag) {
     var h = el(tag, 'title');
     var a = el('a', null, article.title);
-    a.href = article.link;
-    a.target = '_blank';
-    a.rel = 'noopener';
+    if (article.page) {
+      a.href = article.page;  // AI-written article page on this site
+    } else {
+      a.href = article.link;
+      a.target = '_blank';
+      a.rel = 'noopener';
+    }
     h.appendChild(a);
     return h;
+  }
+
+  // A paragraph whose last three words link to the source article.
+  function paragraph(text, link, site) {
+    var p = el('p', 'para');
+    var words = (text || t().readAt(site)).split(' ');
+    var cut = Math.max(0, words.length - 3);
+    var tail = words.slice(cut).join(' ');
+    var trailing = (tail.match(/[.,;:!?"”)]+$/) || [''])[0];
+    if (cut) p.appendChild(document.createTextNode(words.slice(0, cut).join(' ') + ' '));
+    var a = el('a', null, trailing ? tail.slice(0, -trailing.length) : tail);
+    a.href = link;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    p.appendChild(a);
+    if (trailing) p.appendChild(document.createTextNode(trailing));
+    return p;
+  }
+
+  // The story text: one paragraph per outlet (at most two), then "Sumber: ..." after the last one.
+  function storyText(article) {
+    var box = document.createDocumentFragment();
+    box.appendChild(paragraph(article.summary, article.link, article.site));
+    var sites = [article.site];
+    if (article.also) {
+      box.appendChild(paragraph(article.also.summary, article.also.link, article.also.site));
+      if (sites.indexOf(article.also.site) < 0) sites.push(article.also.site);
+    }
+    box.appendChild(el('p', 'sources', t().sourceLine + ': ' + sites.join(', ')));
+    return box;
   }
 
   function meta(article, withTime) {
@@ -146,7 +184,7 @@
     else story.classList.add('lead__story--noimage');
     var text = el('div');
     text.appendChild(title(article, 'h3'));
-    if (article.summary) text.appendChild(el('p', 'lead__summary', article.summary));
+    text.appendChild(storyText(article));
     text.appendChild(meta(article, true));
     story.appendChild(text);
   }
@@ -161,6 +199,7 @@
       if (article.image) item.appendChild(frame(article));
       item.appendChild(title(article, 'h3'));
       item.appendChild(meta(article, true));
+      item.appendChild(storyText(article));
       grid.appendChild(item);
     });
   }
@@ -193,6 +232,7 @@
         var li = el('li');
         li.appendChild(title(article, 'h4'));
         li.appendChild(meta(article, false));
+        li.appendChild(storyText(article));
         list.appendChild(li);
       });
       body.appendChild(list);
