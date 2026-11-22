@@ -64,7 +64,7 @@ async function fetchSource(source) {
         .replace(/^[A-Z][A-Z .]{2,30}\s[-–—]\s/, '');
       const title = clean(item.title);
       // some feeds repeat the headline at the start of the summary
-      const body = summary.startsWith(title) ? summary.slice(title.length).replace(/^[\s.:,–—-]+/, '') : summary;
+      const body = summary.startsWith(title) ? summary.slice(title.length).replace(/^[^\p{L}\p{N}"'(]+/u, '') : summary;
       return {
         title,
         link: (item.link || item.guid || '').trim(),
