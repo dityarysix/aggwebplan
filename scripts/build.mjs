@@ -573,8 +573,18 @@ async function main() {
   for (const file of ['style.css', 'app.js', 'favicon.svg']) await copyFile(path.join(root, 'src', file), path.join(dist, file));
   await writeFile(path.join(dist, 'CNAME'), DOMAIN + '\n'); // tells GitHub Pages which domain to answer
 
+  // Browsers keep style.css and app.js for a while. A version number that changes with their
+  // content (style.css?v=1a2b3c) makes every visitor load the new files right after an update.
+  const versions = {};
+  for (const file of ['style.css', 'app.js']) {
+    versions[file] = createHash('sha1').update(await readFile(path.join(root, 'src', file))).digest('hex').slice(0, 8);
+  }
+  const withVersions = (html, prefix) => html
+    .replace(`href="${prefix}style.css"`, `href="${prefix}style.css?v=${versions['style.css']}"`)
+    .replace(`src="${prefix}app.js"`, `src="${prefix}app.js?v=${versions['app.js']}"`);
+
   // One page per AI-written official release.
-  const storyTemplate = await readFile(path.join(root, 'src', 'article.html'), 'utf8');
+  const storyTemplate = withVersions(await readFile(path.join(root, 'src', 'article.html'), 'utf8'), '../');
   const withPages = articles.filter((a) => a.story);
   if (withPages.length) await mkdir(path.join(dist, 'berita'), { recursive: true });
   for (const a of withPages) await writeFile(path.join(dist, a.page), renderStoryPage(storyTemplate, a));
@@ -583,7 +593,7 @@ async function main() {
 
   const json = JSON.stringify(data).replace(/</g, '\\u003c');
   const template = await readFile(path.join(root, 'src', 'index.html'), 'utf8');
-  await writeFile(path.join(dist, 'index.html'), template.replace('__NEWS_DATA__', () => json));
+  await writeFile(path.join(dist, 'index.html'), withVersions(template, '').replace('__NEWS_DATA__', () => json));
 
   const count = (s) => articles.filter((a) => a.section === s).length;
   const inArea = (k) => articles.filter((a) => a.areas?.includes(k)).length;
