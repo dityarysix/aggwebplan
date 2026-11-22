@@ -81,6 +81,7 @@ function tidySummary(text = '') {
   return text
     .replace(/^Ringkasan Berita\s*\*?\s*/i, '')
     .replace(/^[A-Z][\w.]*(?:\s[A-Z][\w.]*){0,2}\s+[–—]\s+/, '')  // "Malang Post – " at the start
+    .replace(/^[A-Z][a-z]+(?:\s[A-Z][a-z]+)?,\s*[\w.]+\.(?:id|com|net)\s+[–—-]\s+/, '')  // "Malang, Tugumalang.id – "
     .split(/\s+The post\s/)[0]  // WordPress feeds end with "The post ... appeared first on ..."
     .split(/\s+--\s+|\s*(?:Ikuti kami|Baca juga|Simak juga|Simak berita|Dapatkan update|Klik di sini)\b/i)[0]
     .replace(/(?:👉\s*)?https?:\/\/\S+/g, '')

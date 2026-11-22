@@ -301,14 +301,33 @@
   }
 
   // Top story and highlights: recent stories with a photo, each from a different outlet.
-  function pickFeatured(articles) {
+  // On Sorotan Utama the highlights also come from different area tabs, and if possible from
+  // an area other than the top story's, so the top of the page covers all of East Java.
+  function pickFeatured(articles, lead) {
     var recent = articles.filter(function (a) { return Date.now() - new Date(a.date) < 2 * 86400000 && a.image; });
-    var picked = [];
+    lead = lead || recent[0] || articles[0];
+    if (!lead) return [];
+    var picked = [lead];
     var usedSources = {};
-    recent.forEach(function (a) {
-      if (picked.length < HIGHLIGHTS + 1 && !usedSources[a.source]) { picked.push(a); usedSources[a.source] = true; }
-    });
-    if (!picked.length && articles.length) picked.push(articles[0]);
+    usedSources[lead.source] = true;
+    var leadAreas = lead.areas || [];
+    var highlightAreas = [];
+    var overlaps = function (a, areas) { return (a.areas || []).some(function (k) { return areas.indexOf(k) >= 0; }); };
+    var take = function (accept) {
+      recent.forEach(function (a) {
+        if (picked.length > HIGHLIGHTS || picked.indexOf(a) >= 0 || usedSources[a.source] || !accept(a)) return;
+        picked.push(a);
+        usedSources[a.source] = true;
+        highlightAreas = highlightAreas.concat(a.areas || []);
+      });
+    };
+    if (state.section === 'utama') {
+      var tagged = function (a) { return (a.areas || []).length > 0; };
+      // 1: a new area, different from the top story's too; 2: a new area among the highlights.
+      take(function (a) { return tagged(a) && !overlaps(a, highlightAreas.concat(leadAreas)); });
+      take(function (a) { return tagged(a) && !overlaps(a, highlightAreas); });
+    }
+    take(function () { return true; });  // fill any gap rather than leave it empty
     return picked;
   }
 
@@ -356,14 +375,14 @@
       if (a.section !== 'jatim') return false;
       return state.section === 'utama' || (a.areas || []).indexOf(state.section) >= 0;
     });
-    var featured = pickFeatured(articles);
     var listed = articles;
+    var lead = null;
     // On Sorotan Utama, the wrap-ups join the news, and the newest one can take the top spot.
     if (state.section === 'utama' && state.lang !== 'en' && DIGESTS.length) {
-      var lead = leadDigest(articles);
-      if (lead) featured = [lead].concat(featured.slice(0, HIGHLIGHTS));
+      lead = leadDigest(articles);
       listed = articles.concat(DIGESTS).sort(function (a, b) { return a.date < b.date ? 1 : -1; });
     }
+    var featured = pickFeatured(articles, lead);
     renderLead(featured[0]);
     renderHighlights(featured.slice(1));
     renderColumn();
