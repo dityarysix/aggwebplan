@@ -40,7 +40,9 @@ and links every headline to the original article. Each edition covers the last 7
   `data/pages.json` and `data/digests.json`; a copy is published under `/data/` and is used
   to restore them if GitHub's cache is ever cleared.
 - `areas.json` lists the place names for each area tab (Surabaya Raya, Malang Raya,
-  Madura, Mataraman).
+  Madura, Mataraman, Tapal Kuda).
+- Local outlets have `"localArea"` in `sources.json`: only their stories about an East Java
+  area are kept. Busy outlets can have `"maxPerDay"` (the Radar papers: 12 a day).
 - `scripts/build.mjs` downloads the feeds, adds new articles to the weekly archive
   (`data/archive.json`) and builds the website into `dist/`.
 - `src/` holds the page design: `index.html`, `style.css`, `app.js`.

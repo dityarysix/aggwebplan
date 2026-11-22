@@ -105,7 +105,7 @@ async function fetchSource(source) {
   try {
     const feed = await parser.parseString(await fetchText(source.url));
     const items = feed.items.map((item) => {
-      const date = new Date(item.isoDate || item.pubDate);
+      const date = fixClock(new Date(item.isoDate || item.pubDate));
       const summary = dropDateline(clean(item.contentSnippet || item.content || item.summary || ''));
       const title = clean(item.title);
       // some feeds repeat the headline at the start of the summary
@@ -118,6 +118,7 @@ async function fetchSource(source) {
         date: isNaN(date) ? null : date.toISOString(),
         summary: shorten(tidySummary(body), SUMMARY_LENGTH),
         image: findImage(item),
+        clockFixed: source.url.includes('jawapos.com') || undefined,
         ...sourceFields(source),
       };
     }).filter((a) => a.title && a.link.startsWith('http') && a.date);
@@ -127,6 +128,13 @@ async function fetchSource(source) {
     console.log(`  FAIL      ${source.name} (${source.section}): ${err.cause?.message || err.message}`);
     return [];
   }
+}
+
+// Some feeds (the Jawa Pos Radar papers) write Jakarta time but label it GMT, which puts
+// their stories 7 hours in the future. A date more than 30 minutes ahead is moved back 7 hours.
+function fixClock(date) {
+  if (date - Date.now() > 30 * 60000) date = new Date(date.getTime() - 7 * 3600000);
+  return date > new Date() ? new Date() : date;  // scheduled a few minutes ahead: show as "now"
 }
 
 // A summary is a real sentence: long, with enough lower-case words (menu text is Title Case).
@@ -287,6 +295,10 @@ function aboutEastJava(a, matchers) {
 
 const jakartaDay = (iso) => new Date(new Date(iso).getTime() + 7 * 3600000).toISOString().slice(0, 10);
 
+// Busy outlets (the Radar papers publish about 100 articles a day) can have a lower daily limit
+// in sources.json ("maxPerDay"), keeping the front page light.
+let dailyLimits = {};
+
 function pickArticles(all, keepDays) {
   const oldest = Date.now() - keepDays * 86400000;
   const newestFirst = all
@@ -310,7 +322,7 @@ function pickArticles(all, keepDays) {
     kept.set(key, a); kept.set(linkKey, a);
     const perDay = `${a.section}|${a.source}|${jakartaDay(a.date)}`;
     counts[perDay] = (counts[perDay] || 0) + 1;
-    if (counts[perDay] > MAX_PER_SOURCE_PER_DAY) continue;
+    if (counts[perDay] > (dailyLimits[a.source] || MAX_PER_SOURCE_PER_DAY)) continue;
     result.push(a);
   }
   return result;
@@ -447,7 +459,7 @@ function digestCandidates(archive, hours, limit) {
   });
 }
 
-const AREA_NAMES = { surabaya: 'Surabaya Raya', malang: 'Malang Raya', madura: 'Madura', mataraman: 'Mataraman' };
+const AREA_NAMES = { surabaya: 'Surabaya Raya', malang: 'Malang Raya', madura: 'Madura', mataraman: 'Mataraman', tapalkuda: 'Tapal Kuda' };
 
 async function writeDigests(archive, digests) {
   const due = dueDigests(digests);
@@ -600,9 +612,16 @@ async function readArchive() {
 
 async function main() {
   const sources = JSON.parse(await readFile(path.join(root, 'sources.json'), 'utf8'));
+  dailyLimits = Object.fromEntries(sources.filter((s) => s.maxPerDay).map((s) => [s.name, s.maxPerDay]));
   console.log(`Collecting news from ${sources.length} sources…`);
   const saved = await readArchive();
   const previous = saved.articles;
+  // One-time repair: Radar stories saved before fixClock existed are 7 hours late.
+  for (const a of previous) {
+    if (a.link.includes('jawapos.com') && !a.clockFixed) a.date = new Date(new Date(a.date) - 7 * 3600000).toISOString();
+    if (a.link.includes('jawapos.com')) a.clockFixed = true;
+    if (new Date(a.date) > new Date()) a.date = new Date().toISOString();
+  }
   // Links of official pages already read, so government servers are not asked twice.
   const known = new Set([...saved.seen, ...previous.map((a) => a.link)]);
   const fresh = (await Promise.all(sources.map((s) => (s.type === 'html' ? fetchHtmlSource(s, known) : fetchSource(s))))).flat();
@@ -729,7 +748,7 @@ async function main() {
   console.log(`Done: ${articles.length} articles this edition; archive holds ${archive.length} → dist/index.html`);
   console.log(`  Official releases ${articles.filter((a) => a.official).length}, with their own article page ${withPages.length}`);
   console.log(`  Stories reported by two outlets ${articles.filter((a) => a.also).length}`);
-  console.log(`  Jawa Timur ${count('jatim')} (Surabaya Raya ${inArea('surabaya')}, Malang Raya ${inArea('malang')}, Madura ${inArea('madura')}, Mataraman ${inArea('mataraman')}), Dunia ${count('dunia')}`);
+  console.log(`  Jawa Timur ${count('jatim')} (Surabaya Raya ${inArea('surabaya')}, Malang Raya ${inArea('malang')}, Madura ${inArea('madura')}, Mataraman ${inArea('mataraman')}, Tapal Kuda ${inArea('tapalkuda')}), Dunia ${count('dunia')}`);
 }
 
 main().catch((err) => { console.error(err.message); process.exit(1); });

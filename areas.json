@@ -1,19 +1,80 @@
 {
   "_help": "Which East Java stories go into each area tab. 'words' match anywhere in the headline or summary (capital letters must match). 'strict' words only count after Kota, Kabupaten, Pemkot, Polres, Bupati and similar, because they are also ordinary words (batu = stone).",
   "surabaya": {
-    "words": ["Surabaya", "Suroboyo", "Sidoarjo", "Gresik", "Mojokerto", "Lamongan", "Persebaya", "Tanjung Perak", "Juanda"],
+    "words": [
+      "Surabaya",
+      "Suroboyo",
+      "Sidoarjo",
+      "Gresik",
+      "Mojokerto",
+      "Lamongan",
+      "Persebaya",
+      "Tanjung Perak",
+      "Juanda"
+    ],
     "strict": []
   },
   "malang": {
-    "words": ["Malang Raya", "Kepanjen", "Singosari", "Lawang", "Arema", "Bromo Tengger"],
-    "strict": ["Malang", "Batu"]
+    "words": [
+      "Malang Raya",
+      "Kepanjen",
+      "Singosari",
+      "Lawang",
+      "Arema",
+      "Bromo Tengger"
+    ],
+    "strict": [
+      "Malang",
+      "Batu"
+    ]
   },
   "madura": {
-    "words": ["Madura", "Bangkalan", "Sampang", "Pamekasan", "Sumenep", "Suramadu"],
+    "words": [
+      "Madura",
+      "Bangkalan",
+      "Sampang",
+      "Pamekasan",
+      "Sumenep",
+      "Suramadu"
+    ],
     "strict": []
   },
   "mataraman": {
-    "words": ["Mataraman", "Madiun", "Magetan", "Ngawi", "Ponorogo", "Pacitan", "Trenggalek", "Tulungagung", "Blitar", "Kediri", "Nganjuk", "Bojonegoro", "Tuban", "Reog"],
+    "words": [
+      "Mataraman",
+      "Madiun",
+      "Magetan",
+      "Ngawi",
+      "Ponorogo",
+      "Pacitan",
+      "Trenggalek",
+      "Tulungagung",
+      "Blitar",
+      "Kediri",
+      "Nganjuk",
+      "Bojonegoro",
+      "Tuban",
+      "Reog"
+    ],
+    "strict": []
+  },
+  "tapalkuda": {
+    "words": [
+      "Tapal Kuda",
+      "Pandalungan",
+      "Pasuruan",
+      "Bangil",
+      "Probolinggo",
+      "Kraksaan",
+      "Lumajang",
+      "Jember",
+      "Bondowoso",
+      "Situbondo",
+      "Banyuwangi",
+      "Ijen",
+      "Baluran",
+      "Ketapang"
+    ],
     "strict": []
   }
 }

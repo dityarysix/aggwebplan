@@ -20,8 +20,20 @@
   { "name": "Pemkab Ngawi",        "url": "https://ngawikab.go.id/feed/",     "section": "jatim", "lang": "id", "official": true, "area": "mataraman", "place": "Ngawi" },
   { "name": "Pemkab Ponorogo",     "url": "https://ponorogo.go.id/feed/",     "section": "jatim", "lang": "id", "official": true, "area": "mataraman", "place": "Ponorogo" },
 
-  { "name": "Radar Malang",        "url": "https://radarmalang.jawapos.com/rss.xml", "section": "jatim", "lang": "id", "localArea": "malang" },
+  { "name": "Radar Malang",        "url": "https://radarmalang.jawapos.com/rss.xml", "section": "jatim", "lang": "id", "localArea": "malang", "maxPerDay": 12 },
   { "name": "Malang Post",         "url": "https://malang-post.com/feed/",           "section": "jatim", "lang": "id", "localArea": "malang" },
   { "name": "Malang Voice",        "url": "https://malangvoice.com/feed/",           "section": "jatim", "lang": "id", "localArea": "malang" },
-  { "name": "Tugu Malang",         "url": "https://tugumalang.id/feed/",             "section": "jatim", "lang": "id", "localArea": "malang" }
+  { "name": "Tugu Malang",         "url": "https://tugumalang.id/feed/",             "section": "jatim", "lang": "id", "localArea": "malang" },
+
+  { "name": "Radar Jember",        "url": "https://radarjember.jawapos.com/rss.xml",     "section": "jatim", "lang": "id", "localArea": "tapalkuda", "maxPerDay": 12 },
+  { "name": "Radar Banyuwangi",    "url": "https://radarbanyuwangi.jawapos.com/rss.xml", "section": "jatim", "lang": "id", "localArea": "tapalkuda", "maxPerDay": 12 },
+  { "name": "Radar Bromo",         "url": "https://radarbromo.jawapos.com/rss.xml",      "section": "jatim", "lang": "id", "localArea": "tapalkuda", "maxPerDay": 12 },
+  { "name": "Radar Situbondo",     "url": "https://radarsitubondo.jawapos.com/rss.xml",  "section": "jatim", "lang": "id", "localArea": "tapalkuda", "maxPerDay": 12 },
+  { "name": "Radar Madura",        "url": "https://radarmadura.jawapos.com/rss.xml",     "section": "jatim", "lang": "id", "localArea": "madura",    "maxPerDay": 12 },
+  { "name": "Radar Kediri",        "url": "https://radarkediri.jawapos.com/rss.xml",     "section": "jatim", "lang": "id", "localArea": "mataraman", "maxPerDay": 12 },
+  { "name": "Radar Madiun",        "url": "https://radarmadiun.jawapos.com/rss.xml",     "section": "jatim", "lang": "id", "localArea": "mataraman", "maxPerDay": 12 },
+  { "name": "Radar Bojonegoro",    "url": "https://radarbojonegoro.jawapos.com/rss.xml", "section": "jatim", "lang": "id", "localArea": "mataraman", "maxPerDay": 12 },
+  { "name": "Radar Surabaya",      "url": "https://radarsurabaya.jawapos.com/rss.xml",   "section": "jatim", "lang": "id", "localArea": "surabaya",  "maxPerDay": 12 },
+  { "name": "Pemkab Bondowoso",    "type": "html", "url": "https://bondowosokab.go.id/", "links": "bondowosokab\\.go\\.id/berita/[a-z0-9-]+$", "minText": 30, "section": "jatim", "lang": "id", "official": true, "area": "tapalkuda", "place": "Bondowoso" },
+  { "name": "Pemkab Pasuruan",     "type": "html", "url": "https://pasuruankab.go.id/",  "links": "pasuruankab\\.go\\.id/berita/[a-z0-9-]+$",  "minText": 30, "section": "jatim", "lang": "id", "official": true, "area": "tapalkuda", "place": "Pasuruan" }
 ]

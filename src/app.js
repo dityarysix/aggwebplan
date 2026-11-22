@@ -5,7 +5,7 @@
   var data = JSON.parse(document.getElementById('news-data').textContent);
   // Tabs: 'utama' shows all East Java news, the area tabs show East Java news tagged with that
   // area (see areas.json), 'dunia' shows world news.
-  var SECTIONS = ['utama', 'surabaya', 'malang', 'madura', 'mataraman', 'dunia'];
+  var SECTIONS = ['utama', 'surabaya', 'malang', 'madura', 'mataraman', 'tapalkuda', 'dunia'];
   var TZ = 'Asia/Jakarta';
   var EDITION_DAYS = 7;
   var HIGHLIGHTS = 3;
