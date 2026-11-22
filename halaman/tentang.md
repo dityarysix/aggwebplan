@@ -1,10 +1,10 @@
 ---
 judul: Tentang Kami
 alamat: tentang
-deskripsi: Jawa Timur Sepekan merangkum berita Jawa Timur dari media tepercaya dan rilis resmi pemerintah daerah, disusun per wilayah dan diperbarui setiap jam.
+deskripsi: Jawa Timur Sepekan merangkum peristiwa di Jawa Timur dari media tepercaya dan rilis resmi pemerintah daerah, disusun per wilayah.
 ---
 
-**Jawa Timur Sepekan** (jatimsepekan.com) adalah situs rangkuman berita Jawa Timur. Kami mengumpulkan judul dan ringkasan berita dari media tepercaya serta rilis resmi pemerintah daerah, lalu menyusunnya per wilayah agar pembaca mudah mengikuti apa yang terjadi di sekitarnya dalam sepekan terakhir.
+**Jawa Timur Sepekan** (jatimsepekan.com) adalah situs yang merangkum peristiwa yang terjadi di Jawa Timur. Kami mengumpulkan judul dan ringkasan berita dari media-media tepercaya serta rilis resmi dari pemerintah daerah, lalu menyusunnya per wilayah agar pembaca mudah mengikuti apa yang terjadi di Provinsi Jawa Timur dalam sepekan terakhir.
 
 ## Rubrik
 
@@ -15,19 +15,16 @@ deskripsi: Jawa Timur Sepekan merangkum berita Jawa Timur dari media tepercaya d
 
 ## Cara kami bekerja
 
-Situs ini diperbarui secara otomatis setiap jam. Setiap berita ditampilkan dengan judul, ringkasan singkat, dan tautan ke artikel aslinya, beserta nama sumbernya. Kami tidak menyalin artikel secara utuh. Untuk membaca berita selengkapnya, pembaca kami arahkan ke situs sumber.
+Situs ini diperbarui secara otomatis. Setiap berita ditampilkan dengan judul, ringkasan singkat, dan tautan ke artikel aslinya, beserta nama sumbernya. Kami tidak menyalin artikel secara utuh. Untuk membaca berita selengkapnya, pembaca dipersilakan mengunjungi situs berita aslinya.
 
 ## Penggunaan kecerdasan buatan (AI)
 
-Sebagian tulisan di situs ini disusun dengan bantuan AI (Claude, buatan Anthropic), dan selalu diberi label:
-
-- **Ringkasan harian** (setiap pagi pukul 08.00 WIB) dan **ringkasan sepekan** (setiap Jumat pukul 17.00 WIB), yang merangkum beberapa berita pilihan. Setiap berita yang dirangkum ditautkan ke sumber aslinya.
-- **Artikel dari rilis resmi** pemerintah daerah, yang ditulis ulang dari siaran pers tanpa menambah fakta baru.
+Sebagian tulisan di situs ini disusun dengan bantuan AI (Claude, buatan Anthropic), dan selalu diberi label.
 
 AI diminta hanya memakai fakta dari sumber, menjaga nama, angka, dan tanggal tetap sama, serta menulis dengan nada netral. Redaksi memeriksa tulisan AI secara berkala dan memperbaiki atau menghapus tulisan yang keliru.
 
 ## Redaksi
 
-Jawa Timur Sepekan dikelola oleh Redaksi Jatim Sepekan, Jakarta.
+Jawa Timur Sepekan dikelola oleh Redaksi Jatim Sepekan.
 
 Untuk pertanyaan, koreksi, atau kerja sama, silakan hubungi kami melalui halaman [Kontak](https://jatimsepekan.com/kontak/).
