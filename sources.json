@@ -35,5 +35,7 @@
   { "name": "Radar Bojonegoro",    "url": "https://radarbojonegoro.jawapos.com/rss.xml", "section": "jatim", "lang": "id", "localArea": "mataraman", "maxPerDay": 12 },
   { "name": "Radar Surabaya",      "url": "https://radarsurabaya.jawapos.com/rss.xml",   "section": "jatim", "lang": "id", "localArea": "surabaya",  "maxPerDay": 12 },
   { "name": "Pemkab Bondowoso",    "type": "html", "url": "https://bondowosokab.go.id/", "links": "bondowosokab\\.go\\.id/berita/[a-z0-9-]+$", "minText": 30, "section": "jatim", "lang": "id", "official": true, "area": "tapalkuda", "place": "Bondowoso" },
-  { "name": "Pemkab Pasuruan",     "type": "html", "url": "https://pasuruankab.go.id/",  "links": "pasuruankab\\.go\\.id/berita/[a-z0-9-]+$",  "minText": 30, "section": "jatim", "lang": "id", "official": true, "area": "tapalkuda", "place": "Pasuruan" }
+  { "name": "Pemkab Pasuruan",     "type": "html", "url": "https://pasuruankab.go.id/",  "links": "pasuruankab\\.go\\.id/berita/[a-z0-9-]+$",  "minText": 30, "section": "jatim", "lang": "id", "official": true, "area": "tapalkuda", "place": "Pasuruan" },
+
+  { "name": "Kediripedia",         "url": "https://kediripedia.com/feed/",             "section": "jatim", "lang": "id", "localArea": "mataraman" }
 ]
