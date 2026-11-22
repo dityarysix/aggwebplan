@@ -3,28 +3,29 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Warta Wetan — Berita Jawa Timur, Indonesia, dan dunia</title>
-  <meta name="description" content="Berita terbaru dari Jawa Timur, Indonesia, dan dunia, dikumpulkan dari media tepercaya dalam satu halaman.">
-  <meta name="theme-color" content="#1D2B64">
+  <title>Jawa Timur Sepekan — Berita Jawa Timur dalam satu pekan</title>
+  <meta name="description" content="Rangkuman berita Jawa Timur, Indonesia, dan dunia selama sepekan, dikumpulkan dari media tepercaya.">
+  <meta name="theme-color" content="#F5F0E6">
+  <link rel="canonical" href="https://jatimsepekan.com/">
+  <meta property="og:title" content="Jawa Timur Sepekan">
+  <meta property="og:description" content="Rangkuman berita Jawa Timur, Indonesia, dan dunia selama sepekan.">
+  <meta property="og:url" content="https://jatimsepekan.com/">
+  <meta property="og:type" content="website">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
-  <link rel="preload" href="fonts/grotesk-800.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/serif-700.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <a class="skip" href="#berita" data-t="skip">Langsung ke berita</a>
 
   <header class="masthead">
-    <div class="masthead__inner">
-      <div class="brand">
-        <svg class="brand__sun" viewBox="0 0 120 60" aria-hidden="true" focusable="false">
-          <path d="M0 60a60 60 0 0 1 120 0z"/>
-        </svg>
-        <h1 class="brand__name"><a href="./">Warta Wetan</a></h1>
-        <p class="brand__tagline" data-t="tagline">Berita Jawa Timur, Indonesia, dan dunia dalam satu halaman</p>
-      </div>
-      <p class="today"><span id="today"></span><span class="today__updated" id="updated"></span></p>
+    <div class="masthead__top">
+      <h1 class="wordmark"><a href="./">Jawa Timur <span>Sepekan</span></a></h1>
+      <p class="edition">
+        <span id="edition"></span>
+        <span class="edition__updated" id="updated"></span>
+      </p>
     </div>
-
     <nav class="controls" aria-label="Pilih berita">
       <div class="tabs" role="tablist" id="tabs">
         <a role="tab" href="#jatim" data-section="jatim" data-t="jatim">Jawa Timur</a>
@@ -41,12 +42,26 @@
 
   <main id="berita" class="page" tabindex="-1">
     <noscript><p class="empty">Aktifkan JavaScript untuk melihat berita. / Turn on JavaScript to see the news.</p></noscript>
-    <section id="lead" class="lead" aria-live="polite"></section>
-    <ol id="stream" class="stream"></ol>
+
+    <section class="lead" id="lead" aria-labelledby="lead-label">
+      <h2 class="rubric" id="lead-label" data-t="leadLabel">Laporan utama</h2>
+      <article class="lead__story" id="lead-story"></article>
+    </section>
+
+    <section class="highlights" id="highlights" aria-labelledby="highlights-label">
+      <h2 class="rubric" id="highlights-label" data-t="highlightsLabel">Sorotan pekan ini</h2>
+      <div class="highlights__grid" id="highlights-grid"></div>
+    </section>
+
+    <section class="week" aria-labelledby="week-label">
+      <h2 class="rubric" id="week-label" data-t="weekLabel">Sepanjang pekan</h2>
+      <div id="days"></div>
+    </section>
   </main>
 
   <footer class="footer">
-    <p data-t="about">Warta Wetan mengumpulkan judul dan ringkasan berita. Klik judul untuk membaca artikel lengkap di situs aslinya.</p>
+    <p class="footer__name">Jawa Timur <span>Sepekan</span></p>
+    <p data-t="about">Jawa Timur Sepekan mengumpulkan judul dan ringkasan berita dari media tepercaya. Klik judul untuk membaca artikel lengkap di situs aslinya.</p>
     <p><span data-t="sources">Sumber</span>: <span id="sources"></span></p>
   </footer>
 

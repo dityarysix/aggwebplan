@@ -1,37 +1,44 @@
-// Shows the collected news: picks a section (tab) and a language, then draws the page.
+// Shows this week's edition: picks a section (tab) and a language, then draws the page.
 (function () {
   'use strict';
 
   var data = JSON.parse(document.getElementById('news-data').textContent);
   var SECTIONS = ['jatim', 'indonesia', 'dunia'];
   var TZ = 'Asia/Jakarta';
-  var NEW_MINUTES = 60;
-  var STREAM_LIMIT = 60;
+  var EDITION_DAYS = 7;
+  var HIGHLIGHTS = 3;
+  var PER_DAY = 6;
 
   var TEXT = {
     id: {
       skip: 'Langsung ke berita',
-      tagline: 'Berita Jawa Timur, Indonesia, dan dunia dalam satu halaman',
       jatim: 'Jawa Timur', indonesia: 'Indonesia', dunia: 'Dunia', all: 'Semua',
-      about: 'Warta Wetan mengumpulkan judul dan ringkasan berita. Klik judul untuk membaca artikel lengkap di situs aslinya.',
+      leadLabel: 'Laporan utama', highlightsLabel: 'Sorotan pekan ini', weekLabel: 'Sepanjang pekan',
+      edition: 'Edisi',
+      about: 'Jawa Timur Sepekan mengumpulkan judul dan ringkasan berita dari media tepercaya. Klik judul untuk membaca artikel lengkap di situs aslinya.',
       sources: 'Sumber',
       updated: 'Diperbarui',
       today: 'Hari ini', yesterday: 'Kemarin',
-      emptyLang: 'Belum ada berita berbahasa Inggris untuk bagian ini.',
-      emptyAny: 'Belum ada berita di bagian ini. Coba lagi nanti.',
+      more: function (n) { return 'Lihat semua ' + n + ' berita'; },
+      less: 'Tampilkan lebih sedikit',
+      emptyLang: 'Belum ada berita berbahasa Inggris untuk bagian ini pekan ini.',
+      emptyAny: 'Belum ada berita di bagian ini pekan ini.',
       showAll: 'Tampilkan semua bahasa',
       locale: 'id-ID',
     },
     en: {
       skip: 'Skip to the news',
-      tagline: 'News from East Java, Indonesia and the world on one page',
       jatim: 'East Java', indonesia: 'Indonesia', dunia: 'World', all: 'All',
-      about: 'Warta Wetan collects headlines and summaries. Click a headline to read the full article on the original site.',
+      leadLabel: 'Top story', highlightsLabel: 'This week’s highlights', weekLabel: 'Through the week',
+      edition: 'Edition',
+      about: 'Jawa Timur Sepekan collects headlines and summaries from trusted news outlets. Click a headline to read the full article on the original site.',
       sources: 'Sources',
       updated: 'Updated',
       today: 'Today', yesterday: 'Yesterday',
-      emptyLang: 'There is no English news for this section yet.',
-      emptyAny: 'There is no news in this section yet. Try again later.',
+      more: function (n) { return 'See all ' + n + ' stories'; },
+      less: 'Show fewer',
+      emptyLang: 'There is no English news for this section this week.',
+      emptyAny: 'There is no news in this section this week.',
       showAll: 'Show all languages',
       locale: 'en-GB',
     },
@@ -39,7 +46,8 @@
 
   var state = {
     section: sectionFromHash(),
-    lang: localStorage.getItem('ww-lang') || 'all',
+    lang: localStorage.getItem('js-lang') || 'all',
+    open: {}, // days the reader expanded
   };
   if (['all', 'id', 'en'].indexOf(state.lang) < 0) state.lang = 'all';
 
@@ -57,19 +65,21 @@
     return node;
   }
 
+  function fmt(date, options) {
+    options.timeZone = TZ;
+    return new Intl.DateTimeFormat(t().locale, options).format(date);
+  }
+
   function dayKey(date) {
     return new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
   }
 
-  function timeOf(date) {
-    return new Intl.DateTimeFormat(t().locale, { timeZone: TZ, hour: '2-digit', minute: '2-digit', hour12: false }).format(date);
-  }
-
-  function dayLabel(date) {
-    var now = new Date();
-    if (dayKey(date) === dayKey(now)) return t().today;
-    if (dayKey(date) === dayKey(new Date(now - 86400000))) return t().yesterday;
-    return new Intl.DateTimeFormat(t().locale, { timeZone: TZ, weekday: 'long', day: 'numeric', month: 'long' }).format(date);
+  function editionLabel() {
+    var end = new Date();
+    var start = new Date(end - (EDITION_DAYS - 1) * 86400000);
+    var sameMonth = fmt(start, { month: 'long' }) === fmt(end, { month: 'long' });
+    var from = fmt(start, sameMonth ? { day: 'numeric' } : { day: 'numeric', month: 'long' });
+    return t().edition + ' ' + from + '–' + fmt(end, { day: 'numeric', month: 'long', year: 'numeric' });
   }
 
   function relative(date) {
@@ -81,102 +91,145 @@
     return rtf.format(Math.round(hours / 24), 'day');
   }
 
-  function link(article, text) {
-    var a = el('a', null, text);
+  function when(article) {
+    var date = new Date(article.date);
+    var key = dayKey(date);
+    if (key === dayKey(new Date())) return relative(date);
+    return fmt(date, { weekday: 'long', hour: '2-digit', minute: '2-digit', hour12: false });
+  }
+
+  function title(article, tag) {
+    var h = el(tag, 'title');
+    var a = el('a', null, article.title);
     a.href = article.link;
     a.target = '_blank';
     a.rel = 'noopener';
-    return a;
+    h.appendChild(a);
+    return h;
   }
 
-  function image(src, className, alt) {
-    var img = el('img', className);
-    img.src = src;
-    img.alt = alt || '';
-    img.loading = 'lazy';
-    img.decoding = 'async';
-    img.referrerPolicy = 'no-referrer';
-    img.addEventListener('error', function () {
-      var frame = img.closest('.lead__image');
-      if (frame) { frame.remove(); document.getElementById('lead').classList.add('lead--noimage'); }
-      else img.remove();
-    });
-    return img;
-  }
-
-  function meta(article, withRelative) {
+  function meta(article, withTime) {
     var p = el('p', 'meta');
-    p.appendChild(el('span', 'meta__source', article.source));
-    if (withRelative) p.appendChild(el('span', null, relative(new Date(article.date))));
+    p.appendChild(el('b', null, article.source));
+    if (withTime) p.appendChild(document.createTextNode(', ' + when(article)));
     return p;
   }
 
-  function renderLead(article) {
-    var lead = document.getElementById('lead');
-    lead.replaceChildren();
-    lead.className = 'lead';
-    if (!article) { lead.hidden = true; return; }
-    lead.hidden = false;
-    if (article.image) {
-      var frame = el('div', 'lead__image');
-      frame.appendChild(image(article.image, null, ''));
-      lead.appendChild(frame);
-    } else {
-      lead.classList.add('lead--noimage');
-    }
-    var text = el('div', 'lead__text');
-    text.appendChild(meta(article, true));
-    var h = el('h2', 'lead__title');
-    h.appendChild(link(article, article.title));
-    text.appendChild(h);
-    if (article.summary) text.appendChild(el('p', 'lead__summary', article.summary));
-    lead.appendChild(text);
+  function frame(article, onFail) {
+    var box = el('div', 'frame');
+    var img = el('img');
+    img.src = article.image;
+    img.alt = '';
+    img.loading = 'lazy';
+    img.decoding = 'async';
+    img.referrerPolicy = 'no-referrer';
+    img.addEventListener('error', function () { box.remove(); if (onFail) onFail(); });
+    box.appendChild(img);
+    return box;
   }
 
-  function renderStream(articles) {
-    var stream = document.getElementById('stream');
-    stream.replaceChildren();
-    var lastDay = null;
-    var now = Date.now();
-    articles.slice(0, STREAM_LIMIT).forEach(function (article) {
-      var date = new Date(article.date);
-      var key = dayKey(date);
-      if (key !== lastDay) {
-        var heading = el('li', 'day');
-        heading.setAttribute('role', 'presentation');
-        heading.appendChild(el('h3', null, dayLabel(date))).style.font = 'inherit';
-        stream.appendChild(heading);
-        lastDay = key;
-      }
-      var item = el('li', 'story');
-      if (now - date < NEW_MINUTES * 60000) item.classList.add('story--new');
-      var time = el('time', 'story__time', timeOf(date));
-      time.dateTime = article.date;
-      item.appendChild(time);
+  function renderLead(article) {
+    var section = document.getElementById('lead');
+    var story = document.getElementById('lead-story');
+    story.replaceChildren();
+    story.className = 'lead__story';
+    section.hidden = !article;
+    if (!article) return;
+    if (article.image) story.appendChild(frame(article, function () { story.classList.add('lead__story--noimage'); }));
+    else story.classList.add('lead__story--noimage');
+    var text = el('div');
+    text.appendChild(title(article, 'h3'));
+    if (article.summary) text.appendChild(el('p', 'lead__summary', article.summary));
+    text.appendChild(meta(article, true));
+    story.appendChild(text);
+  }
 
-      var body = el('div', 'story__body');
-      var h = el('h4', 'story__title');
-      h.appendChild(link(article, article.title));
-      body.appendChild(h);
-      body.appendChild(meta(article, false));
-      if (article.summary) body.appendChild(el('p', 'story__summary', article.summary));
-      item.appendChild(body);
-      if (article.image) item.appendChild(image(article.image, 'story__thumb', ''));
-      stream.appendChild(item);
+  function renderHighlights(articles) {
+    var section = document.getElementById('highlights');
+    var grid = document.getElementById('highlights-grid');
+    grid.replaceChildren();
+    section.hidden = articles.length === 0;
+    articles.forEach(function (article) {
+      var item = el('article', 'highlight');
+      if (article.image) item.appendChild(frame(article));
+      item.appendChild(title(article, 'h3'));
+      item.appendChild(meta(article, true));
+      grid.appendChild(item);
+    });
+  }
+
+  function renderDays(articles) {
+    var container = document.getElementById('days');
+    container.replaceChildren();
+    var groups = [];
+    var byKey = {};
+    articles.forEach(function (article) {
+      var key = dayKey(new Date(article.date));
+      if (!byKey[key]) { byKey[key] = []; groups.push({ key: key, date: new Date(article.date), items: byKey[key] }); }
+      byKey[key].push(article);
+    });
+
+    var todayKey = dayKey(new Date());
+    var yesterdayKey = dayKey(new Date(Date.now() - 86400000));
+    groups.forEach(function (group) {
+      var day = el('section', 'day');
+      var heading = el('h3', 'day__name');
+      var name = group.key === todayKey ? t().today : group.key === yesterdayKey ? t().yesterday : fmt(group.date, { weekday: 'long' });
+      heading.appendChild(document.createTextNode(name));
+      heading.appendChild(el('span', 'day__date', fmt(group.date, { day: 'numeric', month: 'long' })));
+      day.appendChild(heading);
+
+      var body = el('div');
+      var list = el('ul', 'day__list');
+      var isOpen = !!state.open[group.key];
+      group.items.slice(0, isOpen ? group.items.length : PER_DAY).forEach(function (article) {
+        var li = el('li');
+        li.appendChild(title(article, 'h4'));
+        li.appendChild(meta(article, false));
+        list.appendChild(li);
+      });
+      body.appendChild(list);
+      if (group.items.length > PER_DAY) {
+        var button = el('button', 'more', isOpen ? t().less : t().more(group.items.length));
+        button.type = 'button';
+        button.setAttribute('aria-expanded', String(isOpen));
+        button.addEventListener('click', function () {
+          state.open[group.key] = !isOpen;
+          render();
+          var again = document.querySelector('[data-day="' + group.key + '"] .more');
+          if (again) again.focus();
+        });
+        body.appendChild(button);
+      }
+      day.dataset.day = group.key;
+      day.appendChild(body);
+      container.appendChild(day);
     });
   }
 
   function renderEmpty() {
-    var stream = document.getElementById('stream');
-    var box = el('li', 'empty');
-    box.appendChild(el('p', null, state.lang === 'all' ? t().emptyAny : t().emptyLang));
+    var container = document.getElementById('days');
+    var box = el('div');
+    box.appendChild(el('p', 'empty', state.lang === 'all' ? t().emptyAny : t().emptyLang));
     if (state.lang !== 'all') {
-      var button = el('button', null, t().showAll);
+      var button = el('button', 'more', t().showAll);
       button.type = 'button';
       button.addEventListener('click', function () { setLang('all'); });
       box.appendChild(button);
     }
-    stream.appendChild(box);
+    container.appendChild(box);
+  }
+
+  // Top story and highlights: recent stories with a photo, each from a different outlet.
+  function pickFeatured(articles) {
+    var recent = articles.filter(function (a) { return Date.now() - new Date(a.date) < 2 * 86400000 && a.image; });
+    var picked = [];
+    var usedSources = {};
+    recent.forEach(function (a) {
+      if (picked.length < HIGHLIGHTS + 1 && !usedSources[a.source]) { picked.push(a); usedSources[a.source] = true; }
+    });
+    if (!picked.length && articles.length) picked.push(articles[0]);
+    return picked;
   }
 
   function render() {
@@ -184,34 +237,31 @@
     document.documentElement.lang = state.lang === 'en' ? 'en' : 'id';
     document.querySelectorAll('[data-t]').forEach(function (node) {
       var value = text[node.getAttribute('data-t')];
-      if (value) node.textContent = value;
+      if (typeof value === 'string') node.textContent = value;
     });
-
     document.querySelectorAll('#tabs a').forEach(function (tab) {
       tab.setAttribute('aria-selected', String(tab.dataset.section === state.section));
     });
     document.querySelectorAll('#lang button').forEach(function (button) {
       button.setAttribute('aria-pressed', String(button.dataset.lang === state.lang));
     });
-
-    document.getElementById('today').textContent = new Intl.DateTimeFormat(text.locale, {
-      timeZone: TZ, weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-    }).format(new Date());
+    document.getElementById('edition').textContent = editionLabel();
     document.getElementById('updated').textContent = text.updated + ' ' + relative(new Date(data.updated));
     document.getElementById('sources').textContent = data.sources.join(', ');
 
     var articles = data.articles.filter(function (a) {
       return a.section === state.section && (state.lang === 'all' || a.lang === state.lang);
     });
-    var lead = articles.slice(0, 8).find(function (a) { return a.image; }) || articles[0];
-    renderLead(lead);
-    renderStream(articles.filter(function (a) { return a !== lead; }));
+    var featured = pickFeatured(articles);
+    renderLead(featured[0]);
+    renderHighlights(featured.slice(1));
+    renderDays(articles.filter(function (a) { return featured.indexOf(a) < 0; }));
     if (!articles.length) renderEmpty();
   }
 
   function setLang(lang) {
     state.lang = lang;
-    localStorage.setItem('ww-lang', lang);
+    localStorage.setItem('js-lang', lang);
     render();
   }
 
@@ -222,6 +272,7 @@
 
   window.addEventListener('hashchange', function () {
     state.section = sectionFromHash();
+    state.open = {};
     render();
     window.scrollTo({ top: 0 });
   });
