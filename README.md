@@ -24,6 +24,11 @@ and links every headline to the original article. Each edition covers the last 7
   release by Claude (`scripts/rewrite.mjs`). This needs an Anthropic API key in the
   `ANTHROPIC_API_KEY` environment variable (a repository secret on GitHub). Without it,
   official releases simply show their summary. At most 15 articles are written per run.
+- **Wrap-ups** (`scripts/digest.mjs`): every day from 08:00 WIB a daily wrap-up (5-6
+  paragraphs) and every Friday from 17:00 WIB a weekly wrap-up (7-8 paragraphs), written by
+  Claude from 3-4 interesting stories, each story paragraph linked to its source. The newest
+  wrap-up leads Sorotan Utama for 2 hours, and up to 12 hours (daily) or 24 hours (weekly)
+  until a story reported by two outlets arrives. Saved in `data/digests.json`.
 - `areas.json` lists the place names for each area tab (Surabaya Raya, Malang Raya,
   Madura, Mataraman).
 - `scripts/build.mjs` downloads the feeds, adds new articles to the weekly archive

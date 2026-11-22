@@ -4,6 +4,8 @@ name: Publish Jawa Timur Sepekan
 on:
   schedule:
     - cron: '17 * * * *'   # every hour, at minute 17
+    - cron: '0 1 * * *'    # 08:00 WIB: daily wrap-up
+    - cron: '0 10 * * 5'   # Friday 17:00 WIB: weekly wrap-up
   push:
     branches: [main]
   workflow_dispatch:       # lets you run it by hand from the Actions tab

@@ -185,3 +185,4 @@ img { display: block; max-width: 100%; }
 .story__body .story__sources { margin-top: 1.75rem; font: 600 .9rem/1.4 var(--sans); }
 .story__body .story__note { font: 400 .85rem/1.5 var(--sans); color: var(--redup); }
 a.more { display: inline-block; text-decoration: none; }
+.lead__story .para + .meta { margin-top: 1rem; }

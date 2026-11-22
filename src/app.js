@@ -22,6 +22,7 @@
       sourceLine: 'Sumber',
       readAt: function (site) { return 'Berita selengkapnya dapat dibaca di ' + site; },
       official: 'Rilis resmi',
+      daily: 'Ringkasan harian', weekly: 'Ringkasan sepekan',
       officialSources: 'Rilis resmi pemerintah daerah',
       updated: 'Diperbarui',
       today: 'Hari ini', yesterday: 'Kemarin',
@@ -42,6 +43,7 @@
       sourceLine: 'Source',
       readAt: function (site) { return 'Read the full story at ' + site; },
       official: 'Official release',
+      daily: 'Daily wrap-up', weekly: 'Weekly wrap-up',
       officialSources: 'Official releases from local governments',
       updated: 'Updated',
       today: 'Today', yesterday: 'Yesterday',
@@ -142,6 +144,10 @@
   // The story text: one paragraph per outlet (at most two), then "Sumber: ..." after the last one.
   function storyText(article) {
     var box = document.createDocumentFragment();
+    if (article.digest) {  // a wrap-up: its links to every story are on its own page
+      box.appendChild(el('p', 'para', article.summary));
+      return box;
+    }
     box.appendChild(paragraph(article.summary, article.link, article.site));
     var sites = [article.site];
     if (article.also) {
@@ -157,6 +163,7 @@
     p.appendChild(el('b', null, article.source));
     if (withTime) p.appendChild(document.createTextNode(', ' + when(article)));
     if (article.official) p.appendChild(el('span', 'official', t().official));
+    if (article.digest) p.appendChild(el('span', 'official', t()[article.digest]));
     return p;
   }
 
@@ -279,6 +286,26 @@
     return picked;
   }
 
+  // The daily and weekly wrap-ups, shaped like articles.
+  var DIGESTS = (data.digests || []).map(function (d) {
+    return {
+      digest: d.kind, title: d.title, date: d.date, page: d.page, link: d.page, image: d.image,
+      summary: d.summary, source: 'Redaksi Jawa Timur Sepekan', section: 'jatim', lang: 'id', areas: [],
+    };
+  });
+
+  // The newest wrap-up leads Sorotan Utama for 2 hours. After that it stays on top (up to 12 hours
+  // for the daily, 24 for the weekly) until a big story arrives: one reported by two outlets.
+  function leadDigest(articles) {
+    var d = DIGESTS[0];
+    if (!d) return null;
+    var age = Date.now() - new Date(d.date);
+    if (age < 2 * 3600000) return d;
+    if (age > (d.digest === 'weekly' ? 24 : 12) * 3600000) return null;
+    var bigNews = articles.some(function (a) { return a.also && a.date > d.date; });
+    return bigNews ? null : d;
+  }
+
   function render() {
     var text = t();
     document.documentElement.lang = state.lang === 'en' ? 'en' : 'id';
@@ -304,9 +331,16 @@
       return state.section === 'utama' || (a.areas || []).indexOf(state.section) >= 0;
     });
     var featured = pickFeatured(articles);
+    var listed = articles;
+    // On Sorotan Utama, the wrap-ups join the news, and the newest one can take the top spot.
+    if (state.section === 'utama' && state.lang !== 'en' && DIGESTS.length) {
+      var lead = leadDigest(articles);
+      if (lead) featured = [lead].concat(featured.slice(0, HIGHLIGHTS));
+      listed = articles.concat(DIGESTS).sort(function (a, b) { return a.date < b.date ? 1 : -1; });
+    }
     renderLead(featured[0]);
     renderHighlights(featured.slice(1));
-    renderDays(articles.filter(function (a) { return featured.indexOf(a) < 0; }));
+    renderDays(listed.filter(function (a) { return featured.indexOf(a) < 0; }));
     if (!articles.length) renderEmpty();
   }
 

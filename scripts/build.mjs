@@ -8,10 +8,12 @@ import { createHash } from 'node:crypto';
 import Parser from 'rss-parser';
 import { EnvHttpProxyAgent, setGlobalDispatcher } from 'undici';
 import { canRewrite, writeStory } from './rewrite.mjs';
+import { writeDigest } from './digest.mjs';
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const dist = path.join(root, 'dist');
 const archiveFile = path.join(root, 'data', 'archive.json');
+const digestsFile = path.join(root, 'data', 'digests.json');
 
 const DOMAIN = 'jatimsepekan.com';
 const EDITION_DAYS = 7;          // one edition = the last 7 days
@@ -379,10 +381,102 @@ function renderStoryPage(template, a) {
     URL: `https://${DOMAIN}/${a.page}`,
     IMAGE: a.image ? `<figure class="story__image"><img src="${escapeHtml(a.image)}" alt="" referrerpolicy="no-referrer"></figure>` : '',
     OG_IMAGE: a.image ? `<meta property="og:image" content="${escapeHtml(a.image)}">` : '',
+    RUBRIC: 'Rilis resmi',
+    NOTE: `Berita ini disusun ulang dengan bantuan AI dari siaran pers resmi ${escapeHtml(a.source)}. Fakta, nama, dan angka berasal dari siaran pers tersebut.`,
     SOURCE: escapeHtml(a.source),
     DATE: escapeHtml(longDate(a.date)),
     DATETIME: escapeHtml(a.date),
     BODY: paragraphs.join('\n      '),
+    SITES: escapeHtml(sites.join(', ')),
+  };
+  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => fill[key] ?? '');
+}
+
+// ---------- Daily and weekly wrap-ups ----------
+
+const DIGEST_LABEL = { daily: 'Ringkasan harian', weekly: 'Ringkasan sepekan' };
+const jakartaNow = () => new Date(Date.now() + 7 * 3600000);  // read with getUTC* methods
+
+// Which wrap-ups are due now: daily from 08:00 WIB, weekly from Friday 17:00 WIB (until Saturday
+// night, in case GitHub skipped a run). The key is the Jakarta date, so each is written once.
+function dueDigests(digests) {
+  const now = jakartaNow();
+  const today = now.toISOString().slice(0, 10);
+  const due = [];
+  if (now.getUTCHours() >= 8) due.push({ kind: 'daily', key: today });
+  const day = now.getUTCDay();
+  if ((day === 5 && now.getUTCHours() >= 17) || day === 6) {
+    const friday = new Date(now.getTime() - (day - 5) * 86400000).toISOString().slice(0, 10);
+    due.push({ kind: 'weekly', key: friday });
+  }
+  return due.filter((d) => !digests.some((x) => x.kind === d.kind && x.key === d.key));
+}
+
+// The news Claude chooses from: East Java stories in Indonesian, stories reported by two outlets
+// and official releases first.
+function digestCandidates(archive, hours, limit) {
+  const since = Date.now() - hours * 3600000;
+  const recent = archive.filter((a) => a.section === 'jatim' && a.lang === 'id' && new Date(a.date) >= since)
+    .map((a) => ({ ...a, summary: tidySummary(a.summary), also: undefined }));
+  const grouped = groupSameStories(recent)
+    .sort((a, b) => (b.also ? 1 : 0) - (a.also ? 1 : 0) || (b.official ? 1 : 0) - (a.official ? 1 : 0) || b.date.localeCompare(a.date))
+    .slice(0, limit);
+  return grouped.map((a, i) => {
+    const id = i + 1;
+    const areas = (a.areas || []).map((k) => AREA_NAMES[k]).join(', ');
+    let line = `[${id}] ${longDate(a.date)}${areas ? ` (${areas})` : ''}. ${a.source}: ${a.title}. ${a.summary}`;
+    if (a.story) line += ` Isi rilis: ${a.story.slice(0, 3).join(' ')}`;
+    if (a.also) line += ` Juga diberitakan ${a.also.source}: ${a.also.summary}`;
+    return { id, line, article: a };
+  });
+}
+
+const AREA_NAMES = { surabaya: 'Surabaya Raya', malang: 'Malang Raya', madura: 'Madura', mataraman: 'Mataraman' };
+
+async function writeDigests(archive, digests) {
+  const due = dueDigests(digests);
+  if (!due.length) return;
+  if (!canRewrite()) {
+    console.log(`  Wrap-ups off (no ANTHROPIC_API_KEY): ${due.map((d) => d.kind).join(', ')} not written`);
+    return;
+  }
+  for (const d of due) {
+    const candidates = d.kind === 'daily' ? digestCandidates(archive, 24, 60) : digestCandidates(archive, 7 * 24, 100);
+    if (candidates.length < 6) { console.log(`  ${DIGEST_LABEL[d.kind]}: not enough news yet`); continue; }
+    const written = await writeDigest(d.kind, candidates);
+    if (!written) continue;
+    const byId = new Map(candidates.map((c) => [c.id, c.article]));
+    const used = written.paragraphs.map((p) => byId.get(p.story)).filter(Boolean);
+    digests.push({
+      kind: d.kind,
+      key: d.key,
+      date: new Date().toISOString(),
+      title: written.title,
+      paragraphs: written.paragraphs.map((p) => {
+        const a = byId.get(p.story);
+        return a ? { text: p.text, link: a.link, site: siteName(a.link) } : { text: p.text };
+      }),
+      image: used.find((a) => a.image)?.image || null,
+      page: `berita/${d.kind === 'daily' ? 'ringkasan-harian' : 'ringkasan-sepekan'}-${d.key}.html`,
+    });
+    console.log(`  ${DIGEST_LABEL[d.kind]} written: ${written.title} (${new Set(used).size} stories)`);
+  }
+}
+
+function renderDigestPage(template, d) {
+  const sites = [...new Set(d.paragraphs.map((p) => p.site).filter(Boolean))];
+  const fill = {
+    TITLE: escapeHtml(d.title),
+    DESCRIPTION: escapeHtml(d.paragraphs[0].text.slice(0, 160)),
+    URL: `https://${DOMAIN}/${d.page}`,
+    IMAGE: d.image ? `<figure class="story__image"><img src="${escapeHtml(d.image)}" alt="" referrerpolicy="no-referrer"></figure>` : '',
+    OG_IMAGE: d.image ? `<meta property="og:image" content="${escapeHtml(d.image)}">` : '',
+    RUBRIC: DIGEST_LABEL[d.kind],
+    NOTE: 'Ringkasan ini ditulis dengan bantuan AI dari berita yang dikumpulkan Jawa Timur Sepekan. Setiap berita ditautkan ke sumber aslinya.',
+    SOURCE: 'Redaksi Jawa Timur Sepekan',
+    DATE: escapeHtml(longDate(d.date)),
+    DATETIME: escapeHtml(d.date),
+    BODY: d.paragraphs.map((p) => `<p>${p.link ? linkLastWords(p.text, p.link) : escapeHtml(p.text)}</p>`).join('\n      '),
     SITES: escapeHtml(sites.join(', ')),
   };
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) => fill[key] ?? '');
@@ -435,6 +529,10 @@ async function main() {
   const archive = pickArticles(candidates, KEEP_DAYS);
   tagAreas(archive, matchers);
   await writeStories(archive);
+  let digests = [];
+  try { digests = JSON.parse(await readFile(digestsFile, 'utf8')).digests || []; } catch { /* first run */ }
+  await writeDigests(archive, digests);
+  digests = digests.filter((d) => Date.now() - new Date(d.date) < 30 * 86400000);
   for (const a of archive) {
     if (a.story) delete a.body;  // the full release text is only needed until the article is written
     a.page = a.story ? `berita/${pageSlug(a)}.html` : undefined;
@@ -443,6 +541,7 @@ async function main() {
   await mkdir(path.dirname(archiveFile), { recursive: true });
   const seen = [...known].slice(-3000);
   await writeFile(archiveFile, JSON.stringify({ updated: new Date().toISOString(), articles: archive, seen }) + '\n');
+  await writeFile(digestsFile, JSON.stringify({ digests }) + '\n');
 
   const editionStart = Date.now() - EDITION_DAYS * 86400000;
   const edition = archive.filter((a) => new Date(a.date).getTime() >= editionStart)
@@ -454,6 +553,9 @@ async function main() {
     sources: [...new Set(sources.filter((s) => !s.official).map((s) => s.name))],
     official: [...new Set(sources.filter((s) => s.official).map((s) => s.name))],
     articles: articles.map(({ story, ...rest }) => rest),  // the full article text lives on its own page
+    // Wrap-ups of this edition, for the front page (newest first).
+    digests: digests.filter((d) => new Date(d.date).getTime() >= editionStart).reverse()
+      .map((d) => ({ kind: d.kind, title: d.title, date: d.date, page: d.page, image: d.image, summary: shorten(d.paragraphs[0].text, 260) })),
   };
 
   await rm(dist, { recursive: true, force: true });
@@ -476,6 +578,8 @@ async function main() {
   const withPages = articles.filter((a) => a.story);
   if (withPages.length) await mkdir(path.join(dist, 'berita'), { recursive: true });
   for (const a of withPages) await writeFile(path.join(dist, a.page), renderStoryPage(storyTemplate, a));
+  if (digests.length) await mkdir(path.join(dist, 'berita'), { recursive: true });
+  for (const d of digests) await writeFile(path.join(dist, d.page), renderDigestPage(storyTemplate, d));
 
   const json = JSON.stringify(data).replace(/</g, '\\u003c');
   const template = await readFile(path.join(root, 'src', 'index.html'), 'utf8');
