@@ -36,6 +36,17 @@ function shorten(text, max) {
   return cut.slice(0, cut.lastIndexOf(' ')).replace(/[\s,.;:–-]+$/, '') + '…';
 }
 
+// Removes datelines at the start of a summary: "JATIMTIMES - ", "Surabaya (ANTARA) - ",
+// "KOMINFO, Sidoarjo – ", "Pemkab Pamekasan- ", "Media Center, Senin ( 16/11 ) ".
+function dropDateline(text) {
+  return text
+    .replace(/^[^.!?]{0,40}?\([A-Za-z]+\)\s*[-–—]\s*/, '')
+    .replace(/^[A-Z][A-Z .]{2,30}\s[-–—]\s/, '')
+    .replace(/^[A-Z][A-Za-z]+(?:\s[A-Z][A-Za-z]+)?,\s*[A-Z][a-z]+\s*[-–—]\s*/, '')
+    .replace(/^(?:Pemkab|Pemkot|Humas|Diskominfo|Kominfo)\s+\w+\s*[-–—]\s*/, '')
+    .replace(/^[^.!?]{0,40}?\(\s*\d{1,2}\/\d{1,2}(?:\/\d{2,4})?\s*\)\s*[-–—,]?\s*/, '');
+}
+
 function findImage(item) {
   const fromAttr = (x) => x && (x.$?.url || x.url);
   const candidates = [
@@ -58,10 +69,7 @@ async function fetchSource(source) {
     const feed = await parser.parseString(await response.text());
     const items = feed.items.map((item) => {
       const date = new Date(item.isoDate || item.pubDate);
-      const summary = clean(item.contentSnippet || item.content || item.summary || '')
-        // drop datelines such as "JATIMTIMES - " or "Surabaya (ANTARA) - " at the start
-        .replace(/^[^.!?]{0,40}?\([A-Za-z]+\)\s*[-–—]\s*/, '')
-        .replace(/^[A-Z][A-Z .]{2,30}\s[-–—]\s/, '');
+      const summary = dropDateline(clean(item.contentSnippet || item.content || item.summary || ''));
       const title = clean(item.title);
       // some feeds repeat the headline at the start of the summary
       const body = summary.startsWith(title) ? summary.slice(title.length).replace(/^[^\p{L}\p{N}"'(]+/u, '') : summary;
@@ -71,15 +79,118 @@ async function fetchSource(source) {
         date: isNaN(date) ? null : date.toISOString(),
         summary: shorten(body, SUMMARY_LENGTH),
         image: findImage(item),
-        source: source.name,
-        section: source.section,
-        lang: source.lang,
+        ...sourceFields(source),
       };
     }).filter((a) => a.title && a.link.startsWith('http') && a.date);
     console.log(`  ok   ${String(items.length).padStart(3)}  ${source.name} (${source.section})`);
     return items;
   } catch (err) {
     console.log(`  FAIL      ${source.name} (${source.section}): ${err.cause?.message || err.message}`);
+    return [];
+  }
+}
+
+function sourceFields(source) {
+  const fields = { source: source.name, section: source.section, lang: source.lang };
+  if (source.official) Object.assign(fields, { official: true, homeArea: source.area, place: source.place });
+  return fields;
+}
+
+const get = (url) => fetch(url, { headers: { 'User-Agent': USER_AGENT }, signal: AbortSignal.timeout(20000) })
+  .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.text(); });
+
+const MONTHS = { januari: 0, februari: 1, maret: 2, april: 3, mei: 4, juni: 5, juli: 6, agustus: 7, september: 8, oktober: 9, november: 10, desember: 11,
+  jan: 0, feb: 1, mar: 2, apr: 3, jun: 5, jul: 6, agu: 7, agt: 7, ags: 7, sep: 8, okt: 9, nov: 10, des: 11 };
+
+function metaTag(page, name) {
+  const n = name.replace(/[.:]/g, '\\$&');
+  // content="..." or content='...': the closing quote must match the opening one (titles contain apostrophes)
+  const m = page.match(new RegExp(`<meta[^>]+(?:property|name|itemprop)=["']${n}["'][^>]*content=(["'])([\\s\\S]*?)\\1`, 'i'))
+    || page.match(new RegExp(`<meta[^>]+content=(["'])([\\s\\S]*?)\\1[^>]*(?:property|name|itemprop)=["']${n}["']`, 'i'));
+  return m ? clean(m[2]) : '';
+}
+
+// Finds the publication date on an article page: machine-readable tags first, then a written
+// Indonesian date such as "20 November 2026". Dates without a time are set to noon in Jakarta.
+function findDate(page, opening = '') {
+  const machine = metaTag(page, 'article:published_time') || page.match(/"datePublished"\s*:\s*"([^"]+)"/)?.[1];
+  if (machine && !isNaN(new Date(machine))) return new Date(machine);
+  return dateInText(opening) || dateInText(clean(page.replace(/<script[\s\S]*?<\/script>/gi, ' ')));
+}
+
+function dateInText(text) {
+  const short = text.match(/\(\s*(\d{1,2})\/(\d{1,2})(?:\/(20\d\d))?\s*\)/);
+  const m = text.match(/\b(\d{1,2})\s+(Januari|Februari|Maret|April|Mei|Juni|Juli|Agustus|September|Oktober|November|Desember|Jan|Feb|Mar|Apr|Jun|Jul|Agu|Agt|Ags|Sep|Okt|Nov|Des)\.?\s+(20\d\d)\b/i);
+  // Press releases write their date as "(16/11)" right after the place: prefer that.
+  let noon = null;
+  if (short) {
+    const year = Number(short[3]) || new Date().getUTCFullYear();
+    noon = new Date(Date.UTC(year, Number(short[2]) - 1, Number(short[1]), 5));
+    if (!short[3] && noon - Date.now() > 86400000) noon.setUTCFullYear(year - 1);  // "(28/12)" read in January
+  } else if (m) noon = new Date(Date.UTC(Number(m[3]), MONTHS[m[2].toLowerCase()], Number(m[1]), 5));
+  if (!noon || isNaN(noon)) return null;
+  return noon > new Date() ? new Date() : noon;
+}
+
+// Reads one article page and returns its headline, summary, photo and date.
+async function readArticle(url, source, linkText) {
+  const page = await get(url);
+  // Many government pages use the site's name as their title; skip those.
+  const generic = (t) => !t || t.length < 15 || /^(?:Pemerintah\s+(?:Kota|Kabupaten|Provinsi)|Pemkot|Pemkab|Portal|Website|Beranda|Home)\b/i.test(t) && t.length < 60;
+  const description = metaTag(page, 'og:description') || metaTag(page, 'description');
+  const title = [
+    metaTag(page, 'og:title'),
+    clean(page.match(/<title>([\s\S]*?)<\/title>/i)?.[1]).split(/\s+[|–]\s+|\s+-\s+(?=Pemerintah|Pemkab|Pemkot|Portal)/)[0],
+    clean(page.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)?.[1]),
+    description.length < 160 && !/[.!?]$/.test(description) ? description : '',
+    linkText,
+  ].map((t) => (t || '').replace(/\s+[-|–]\s+(?:Pemerintah|Pemkab|Pemkot|Portal|Website|Diskominfo|Kominfo)\b[^|–]*$/i, ''))
+    .find((t) => !generic(t)) || '';
+  // A summary is a real sentence: long, with mostly lower-case words (menu text is Title Case).
+  const sentence = (t) => t.length > 80 && !t.startsWith(title)
+    && t.split(/\s+/).filter((w) => /^[a-z]/.test(w)).length >= t.split(/\s+/).length * 0.25;
+  let summary = sentence(description) ? description : '';
+  if (!summary) summary = [...page.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)].map((m) => clean(m[1])).find(sentence) || '';
+  summary = dropDateline(summary);
+  const image = metaTag(page, 'og:image');
+  const opening = description + ' ' + ([...page.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)].map((m) => clean(m[1])).find(sentence) || '');
+  const date = findDate(page, opening) || new Date();
+  return {
+    title,
+    link: url,
+    date: date.toISOString(),
+    summary: shorten(summary, SUMMARY_LENGTH),
+    image: image.startsWith('http') ? image : null,
+    ...sourceFields(source),
+  };
+}
+
+// For official websites without a news feed: finds article links on the news page, then reads
+// each article page it has not seen before.
+async function fetchHtmlSource(source, known) {
+  try {
+    const page = await get(source.url);
+    const pattern = new RegExp(source.links);
+    const texts = new Map();
+    for (const m of page.matchAll(/<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)) {
+      const href = new URL(decode(m[1]), source.url).href.split('#')[0];
+      if (!pattern.test(href) || href.includes('?text=')) continue;
+      const text = clean(m[2]);
+      if (text.length > (texts.get(href) || '').length) texts.set(href, text);
+    }
+    const links = [...texts].filter(([, text]) => text.length >= (source.minText || 20)).map(([href]) => href).slice(0, 12);
+    const fresh = links.filter((href) => !known.has(href));
+    const items = [];
+    for (const href of fresh) {  // one at a time, to be gentle with government servers
+      try {
+        items.push(await readArticle(href, source, texts.get(href).split(' ... ')[0]));
+        known.add(href);  // remembered even if the article is not kept (too old, or not about East Java)
+      } catch (err) { console.log(`       skip ${href}: ${err.message}`); }
+    }
+    console.log(`  ok   ${String(links.length).padStart(3)}  ${source.name} (${fresh.length} new)`);
+    return items.filter((a) => a.title);
+  } catch (err) {
+    console.log(`  FAIL      ${source.name}: ${err.cause?.message || err.message}`);
     return [];
   }
 }
@@ -104,8 +215,15 @@ function tagAreas(articles, matchers) {
     if (a.section !== 'jatim') continue;
     const text = a.title + ' ' + a.summary;
     a.areas = matchers.filter((m) => m.regex.test(text)).map((m) => m.key);
+    if (a.official && !a.areas.includes(a.homeArea)) a.areas.push(a.homeArea);
   }
 }
+
+// Government sites also repost national releases (from ministries, for example). Keep only
+// official releases that mention their own place or another East Java area.
+const aboutEastJava = (a, matchers) => !a.official
+  || (a.title + ' ' + a.summary).toLowerCase().includes(a.place.toLowerCase())
+  || matchers.some((m) => m.regex.test(a.title + ' ' + a.summary));
 
 const jakartaDay = (iso) => new Date(new Date(iso).getTime() + 7 * 3600000).toISOString().slice(0, 10);
 
@@ -133,34 +251,42 @@ function pickArticles(all, keepDays) {
 
 async function readArchive() {
   try {
-    return JSON.parse(await readFile(archiveFile, 'utf8')).articles || [];
+    const saved = JSON.parse(await readFile(archiveFile, 'utf8'));
+    return { articles: saved.articles || [], seen: saved.seen || [] };
   } catch {
-    return [];
+    return { articles: [], seen: [] };
   }
 }
 
 async function main() {
   const sources = JSON.parse(await readFile(path.join(root, 'sources.json'), 'utf8'));
-  console.log(`Collecting news from ${sources.length} feeds…`);
-  const fresh = (await Promise.all(sources.map(fetchSource))).flat();
-  const previous = await readArchive();
+  console.log(`Collecting news from ${sources.length} sources…`);
+  const saved = await readArchive();
+  const previous = saved.articles;
+  // Links of official pages already read, so government servers are not asked twice.
+  const known = new Set([...saved.seen, ...previous.map((a) => a.link)]);
+  const fresh = (await Promise.all(sources.map((s) => (s.type === 'html' ? fetchHtmlSource(s, known) : fetchSource(s))))).flat();
 
   // Fresh copies first, so updated titles and images win over older saved copies.
   // Drop saved articles from sections that no longer exist in sources.json.
   const sections = new Set(sources.map((s) => s.section));
-  const archive = pickArticles([...fresh, ...previous.filter((a) => sections.has(a.section))], KEEP_DAYS);
   const areas = JSON.parse(await readFile(path.join(root, 'areas.json'), 'utf8'));
-  tagAreas(archive, areaMatchers(areas));
+  const matchers = areaMatchers(areas);
+  const candidates = [...fresh, ...previous.filter((a) => sections.has(a.section))].filter((a) => aboutEastJava(a, matchers));
+  const archive = pickArticles(candidates, KEEP_DAYS);
+  tagAreas(archive, matchers);
   if (archive.length === 0) throw new Error('No articles were collected. Check the network and sources.json.');
   await mkdir(path.dirname(archiveFile), { recursive: true });
-  await writeFile(archiveFile, JSON.stringify({ updated: new Date().toISOString(), articles: archive }) + '\n');
+  const seen = [...known].slice(-3000);
+  await writeFile(archiveFile, JSON.stringify({ updated: new Date().toISOString(), articles: archive, seen }) + '\n');
 
   const editionStart = Date.now() - EDITION_DAYS * 86400000;
   const articles = archive.filter((a) => new Date(a.date).getTime() >= editionStart);
 
   const data = {
     updated: new Date().toISOString(),
-    sources: [...new Set(sources.map((s) => s.name))],
+    sources: [...new Set(sources.filter((s) => !s.official).map((s) => s.name))],
+    official: [...new Set(sources.filter((s) => s.official).map((s) => s.name))],
     articles,
   };
 
@@ -186,6 +312,7 @@ async function main() {
   const count = (s) => articles.filter((a) => a.section === s).length;
   const inArea = (k) => articles.filter((a) => a.areas?.includes(k)).length;
   console.log(`Done: ${articles.length} articles this edition; archive holds ${archive.length} → dist/index.html`);
+  console.log(`  Official releases ${articles.filter((a) => a.official).length}`);
   console.log(`  Jawa Timur ${count('jatim')} (Surabaya Raya ${inArea('surabaya')}, Malang Raya ${inArea('malang')}, Madura ${inArea('madura')}, Mataraman ${inArea('mataraman')}), Dunia ${count('dunia')}`);
 }
 

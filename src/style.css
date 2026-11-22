@@ -89,6 +89,11 @@ img { display: block; max-width: 100%; }
 }
 .meta { margin: 0; font: 400 .85rem/1.4 var(--sans); color: var(--redup); }
 .meta b { font-weight: 600; color: var(--tinta); }
+.official {
+  display: inline-block; margin-left: .5rem; padding: .05rem .4rem; vertical-align: .05em;
+  font-size: .75rem; font-weight: 600; color: var(--bata-teks);
+  border: 1px solid currentColor; border-radius: 2px;
+}
 
 .title a { text-decoration: none; }
 .title a:hover { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: .18em; text-decoration-color: var(--bata); }

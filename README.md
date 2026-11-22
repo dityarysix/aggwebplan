@@ -7,8 +7,18 @@ and links every headline to the original article. Each edition covers the last 7
 
 ## How it works
 
-- `sources.json` lists the news feeds. Add or remove a line to change sources.
-  `section` is `jatim`, `indonesia` or `dunia`; `lang` is `id` or `en`.
+- `sources.json` lists the news sources. Add or remove a line to change sources.
+  `section` is `jatim` or `dunia`; `lang` is `id` or `en`.
+  - News feeds (RSS) need only `name` and `url`.
+  - Official local government sites without a feed use `"type": "html"`: `url` is
+    their news page and `links` is a pattern that matches their article links. The
+    build reads each new article page once for its headline, summary, photo and date.
+  - `"official": true` marks a local government source: its stories get the
+    *Rilis resmi* label, always appear in its `area` tab, and are dropped when they do
+    not mention `place` or another East Java area (government sites also repost
+    national releases).
+- `areas.json` lists the place names for each area tab (Surabaya Raya, Malang Raya,
+  Madura, Mataraman).
 - `scripts/build.mjs` downloads the feeds, adds new articles to the weekly archive
   (`data/archive.json`) and builds the website into `dist/`.
 - `src/` holds the page design: `index.html`, `style.css`, `app.js`.

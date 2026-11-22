@@ -8,5 +8,15 @@
   { "name": "CNN Indonesia",    "url": "https://www.cnnindonesia.com/internasional/rss", "section": "dunia",   "lang": "id" },
 
   { "name": "Antara English",   "url": "https://en.antaranews.com/rss/news.xml",         "section": "jatim",   "lang": "en" },
-  { "name": "Antara English",   "url": "https://en.antaranews.com/rss/world.xml",        "section": "dunia",   "lang": "en" }
+  { "name": "Antara English",   "url": "https://en.antaranews.com/rss/world.xml",        "section": "dunia",   "lang": "en" },
+
+  { "name": "Pemkot Surabaya",     "type": "html", "url": "https://surabaya.go.id/",          "links": "surabaya\\.go\\.id/id/berita/\\d+/",                 "section": "jatim", "lang": "id", "official": true, "area": "surabaya",  "place": "Surabaya" },
+  { "name": "Pemkab Sidoarjo",     "type": "html", "url": "https://sidoarjokab.go.id/",       "links": "sidoarjokab\\.go\\.id/berita/[a-z0-9-]+$", "minText": 40, "section": "jatim", "lang": "id", "official": true, "area": "surabaya",  "place": "Sidoarjo" },
+  { "name": "Pemkab Mojokerto",    "type": "html", "url": "https://mojokertokab.go.id/",      "links": "mojokertokab\\.go\\.id/detail-berita/",              "section": "jatim", "lang": "id", "official": true, "area": "surabaya",  "place": "Mojokerto" },
+  { "name": "Pemkab Sumenep",      "type": "html", "url": "https://sumenepkab.go.id/berita",  "links": "sumenepkab\\.go\\.id/berita/baca/",                  "section": "jatim", "lang": "id", "official": true, "area": "madura",    "place": "Sumenep" },
+  { "name": "Pemkab Pamekasan",    "type": "html", "url": "https://pamekasankab.go.id/berita","links": "pamekasankab\\.go\\.id/berita/\\d+/",               "section": "jatim", "lang": "id", "official": true, "area": "madura",    "place": "Pamekasan" },
+  { "name": "Pemkab Nganjuk",      "type": "html", "url": "https://nganjukkab.go.id/berita",  "links": "nganjukkab\\.go\\.id/berita/[a-z0-9-]+$",            "section": "jatim", "lang": "id", "official": true, "area": "mataraman", "place": "Nganjuk" },
+  { "name": "Pemkab Magetan",      "url": "https://magetan.go.id/feed/",      "section": "jatim", "lang": "id", "official": true, "area": "mataraman", "place": "Magetan" },
+  { "name": "Pemkab Ngawi",        "url": "https://ngawikab.go.id/feed/",     "section": "jatim", "lang": "id", "official": true, "area": "mataraman", "place": "Ngawi" },
+  { "name": "Pemkab Ponorogo",     "url": "https://ponorogo.go.id/feed/",     "section": "jatim", "lang": "id", "official": true, "area": "mataraman", "place": "Ponorogo" }
 ]

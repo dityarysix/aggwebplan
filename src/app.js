@@ -19,6 +19,8 @@
       edition: 'Edisi',
       about: 'Jawa Timur Sepekan mengumpulkan judul dan ringkasan berita dari media tepercaya. Klik judul untuk membaca artikel lengkap di situs aslinya.',
       sources: 'Sumber',
+      official: 'Rilis resmi',
+      officialSources: 'Rilis resmi pemerintah daerah',
       updated: 'Diperbarui',
       today: 'Hari ini', yesterday: 'Kemarin',
       more: function (n) { return 'Lihat semua ' + n + ' berita'; },
@@ -35,6 +37,8 @@
       edition: 'Edition',
       about: 'Jawa Timur Sepekan collects headlines and summaries from trusted news outlets. Click a headline to read the full article on the original site.',
       sources: 'Sources',
+      official: 'Official release',
+      officialSources: 'Official releases from local governments',
       updated: 'Updated',
       today: 'Today', yesterday: 'Yesterday',
       more: function (n) { return 'See all ' + n + ' stories'; },
@@ -114,6 +118,7 @@
     var p = el('p', 'meta');
     p.appendChild(el('b', null, article.source));
     if (withTime) p.appendChild(document.createTextNode(', ' + when(article)));
+    if (article.official) p.appendChild(el('span', 'official', t().official));
     return p;
   }
 
@@ -250,6 +255,7 @@
     document.getElementById('edition').textContent = editionLabel();
     document.getElementById('updated').textContent = text.updated + ' ' + relative(new Date(data.updated));
     document.getElementById('sources').textContent = data.sources.join(', ');
+    document.getElementById('official-sources').textContent = (data.official || []).join(', ');
 
     var articles = data.articles.filter(function (a) {
       if (state.lang !== 'all' && a.lang !== state.lang) return false;
