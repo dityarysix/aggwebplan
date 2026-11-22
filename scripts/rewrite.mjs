@@ -3,7 +3,7 @@
 // Without it, nothing is rewritten and the site shows the summary as usual.
 import Anthropic from '@anthropic-ai/sdk';
 
-const MODEL = 'claude-opus-5-5';
+const MODEL = 'claude-haiku-5-5';  // the low-cost model: well under US$1 a month at about 50 releases a week
 
 const SYSTEM = `Kamu adalah redaktur di Jawa Timur Sepekan, situs rangkuman berita mingguan Jawa Timur.
 Tugasmu: menulis ulang satu siaran pers resmi pemerintah daerah menjadi berita yang ringkas dan netral.
@@ -28,11 +28,9 @@ export function canRewrite() {
 export async function writeStory(article) {
   client ??= new Anthropic();
   try {
-    const response = await client.beta.messages.create({
+    const response = await client.messages.create({
       model: MODEL,
       max_tokens: 4000,
-      betas: ['server-side-fallback-2026-07-01'],
-      fallbacks: 'default',  // if the request is declined, Anthropic retries it on its recommended model
       output_config: { effort: 'low' },
       system: SYSTEM,
       messages: [{
