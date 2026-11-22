@@ -18,5 +18,10 @@
   { "name": "Pemkab Nganjuk",      "type": "html", "url": "https://nganjukkab.go.id/berita",  "links": "nganjukkab\\.go\\.id/berita/[a-z0-9-]+$",            "section": "jatim", "lang": "id", "official": true, "area": "mataraman", "place": "Nganjuk" },
   { "name": "Pemkab Magetan",      "url": "https://magetan.go.id/feed/",      "section": "jatim", "lang": "id", "official": true, "area": "mataraman", "place": "Magetan" },
   { "name": "Pemkab Ngawi",        "url": "https://ngawikab.go.id/feed/",     "section": "jatim", "lang": "id", "official": true, "area": "mataraman", "place": "Ngawi" },
-  { "name": "Pemkab Ponorogo",     "url": "https://ponorogo.go.id/feed/",     "section": "jatim", "lang": "id", "official": true, "area": "mataraman", "place": "Ponorogo" }
+  { "name": "Pemkab Ponorogo",     "url": "https://ponorogo.go.id/feed/",     "section": "jatim", "lang": "id", "official": true, "area": "mataraman", "place": "Ponorogo" },
+
+  { "name": "Radar Malang",        "url": "https://radarmalang.jawapos.com/rss.xml", "section": "jatim", "lang": "id", "localArea": "malang" },
+  { "name": "Malang Post",         "url": "https://malang-post.com/feed/",           "section": "jatim", "lang": "id", "localArea": "malang" },
+  { "name": "Malang Voice",        "url": "https://malangvoice.com/feed/",           "section": "jatim", "lang": "id", "localArea": "malang" },
+  { "name": "Tugu Malang",         "url": "https://tugumalang.id/feed/",             "section": "jatim", "lang": "id", "localArea": "malang" }
 ]

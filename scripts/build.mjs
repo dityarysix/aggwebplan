@@ -139,6 +139,7 @@ function paragraphsOf(html) {
 function sourceFields(source) {
   const fields = { source: source.name, section: source.section, lang: source.lang };
   if (source.official) Object.assign(fields, { official: true, homeArea: source.area, place: source.place });
+  if (source.localArea) fields.localArea = source.localArea;  // a local outlet, such as a Malang paper
   return fields;
 }
 
@@ -251,7 +252,9 @@ function areaMatchers(areas) {
       const parts = [];
       if (area.words.length) parts.push(`\\b(?:${area.words.map(escape).join('|')})\\b`);
       if (area.strict.length) parts.push(`\\b${PLACE_PREFIX}\\s+(?:${area.strict.map(escape).join('|')})\\b`);
-      return { key, regex: new RegExp(parts.join('|')) };
+      // For a local outlet of this area, the strict words are place names too ("Malang" in a Malang paper).
+      const relaxed = new RegExp(`\\b(?:${[...area.words, ...area.strict].map(escape).join('|')})\\b`);
+      return { key, regex: new RegExp(parts.join('|')), relaxed };
     });
 }
 
@@ -259,16 +262,25 @@ function tagAreas(articles, matchers) {
   for (const a of articles) {
     if (a.section !== 'jatim') continue;
     const text = a.title + ' ' + a.summary;
-    a.areas = matchers.filter((m) => m.regex.test(text)).map((m) => m.key);
+    a.areas = matchers.filter((m) => m.regex.test(text) || (a.localArea === m.key && m.relaxed.test(text))).map((m) => m.key);
     if (a.official && !a.areas.includes(a.homeArea)) a.areas.push(a.homeArea);
   }
 }
 
 // Government sites also repost national releases (from ministries, for example). Keep only
 // official releases that mention their own place or another East Java area.
-const aboutEastJava = (a, matchers) => !a.official
-  || (a.title + ' ' + a.summary).toLowerCase().includes(a.place.toLowerCase())
-  || matchers.some((m) => m.regex.test(a.title + ' ' + a.summary));
+// Local outlets also publish lifestyle and national pieces: keep only their stories about an
+// East Java area.
+// Advertorials and shopping tips are not news: leave them out.
+const PROMOTIONAL = /\b(?:promo|diskon|cashback|bawa pulang|rekomendasi|konsumen|harga terjangkau|giveaway|kode voucher)\b/i;
+
+function aboutEastJava(a, matchers) {
+  const text = a.title + ' ' + a.summary;
+  if (PROMOTIONAL.test(a.title)) return false;
+  if (a.localArea) return matchers.some((m) => m.regex.test(text) || (a.localArea === m.key && m.relaxed.test(text)));
+  if (!a.official) return true;
+  return text.toLowerCase().includes(a.place.toLowerCase()) || matchers.some((m) => m.regex.test(text));
+}
 
 const jakartaDay = (iso) => new Date(new Date(iso).getTime() + 7 * 3600000).toISOString().slice(0, 10);
 
