@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import Parser from 'rss-parser';
+import { EnvHttpProxyAgent, setGlobalDispatcher } from 'undici';
 import { canRewrite, writeStory } from './rewrite.mjs';
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -20,6 +21,25 @@ const SUMMARY_LENGTH = 200;      // characters
 const MAX_STORIES_PER_RUN = 15;  // AI-written articles per hourly run, to keep the cost predictable
 const BODY_LENGTH = 8000;        // characters of a press release kept for the AI writer
 const USER_AGENT = 'Mozilla/5.0 (compatible; JatimSepekan/0.2; +https://' + DOMAIN + ')';
+
+// Indonesian sites can be slow to answer servers abroad (GitHub runs in the US): allow 30 seconds
+// to connect instead of 10. EnvHttpProxyAgent also respects a proxy when one is set.
+setGlobalDispatcher(new EnvHttpProxyAgent({ connect: { timeout: 30000 } }));
+
+// Downloads a page; when it fails (timeout, connection reset, server error, block), waits a
+// few seconds and tries once more.
+async function fetchText(url, attempts = 2) {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      const response = await fetch(url, { headers: { 'User-Agent': USER_AGENT }, signal: AbortSignal.timeout(45000) });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return await response.text();
+    } catch (err) {
+      if (attempt >= attempts) throw err;
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+    }
+  }
+}
 
 const parser = new Parser({
   customFields: { item: [['media:content', 'mediaContent'], ['media:thumbnail', 'mediaThumbnail']] },
@@ -77,12 +97,7 @@ function findImage(item) {
 
 async function fetchSource(source) {
   try {
-    const response = await fetch(source.url, {
-      headers: { 'User-Agent': USER_AGENT },
-      signal: AbortSignal.timeout(20000),
-    });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const feed = await parser.parseString(await response.text());
+    const feed = await parser.parseString(await fetchText(source.url));
     const items = feed.items.map((item) => {
       const date = new Date(item.isoDate || item.pubDate);
       const summary = dropDateline(clean(item.contentSnippet || item.content || item.summary || ''));
@@ -124,8 +139,7 @@ function sourceFields(source) {
   return fields;
 }
 
-const get = (url) => fetch(url, { headers: { 'User-Agent': USER_AGENT }, signal: AbortSignal.timeout(20000) })
-  .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.text(); });
+const get = (url) => fetchText(url);
 
 const MONTHS = { januari: 0, februari: 1, maret: 2, april: 3, mei: 4, juni: 5, juli: 6, agustus: 7, september: 8, oktober: 9, november: 10, desember: 11,
   jan: 0, feb: 1, mar: 2, apr: 3, jun: 5, jul: 6, agu: 7, agt: 7, ags: 7, sep: 8, okt: 9, nov: 10, des: 11 };
