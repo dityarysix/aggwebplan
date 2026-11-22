@@ -14,6 +14,7 @@ const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const dist = path.join(root, 'dist');
 const archiveFile = path.join(root, 'data', 'archive.json');
 const digestsFile = path.join(root, 'data', 'digests.json');
+const pagesFile = path.join(root, 'data', 'pages.json');  // every AI-written article page, kept permanently
 
 const DOMAIN = 'jatimsepekan.com';
 const EDITION_DAYS = 7;          // one edition = the last 7 days
@@ -502,6 +503,22 @@ async function writeStories(archive) {
   console.log(`  AI writing: ${written} new articles (${Math.max(0, waiting.length - MAX_STORIES_PER_RUN)} left for the next run)`);
 }
 
+// Reads a saved file from data/. If GitHub's cache was cleared, restores it from the copy
+// published with the site (https://jatimsepekan.com/data/...), so no page is lost.
+async function readSaved(file, name) {
+  try {
+    return JSON.parse(await readFile(file, 'utf8'));
+  } catch {
+    try {
+      const restored = JSON.parse(await fetchText(`https://${DOMAIN}/data/${name}`));
+      console.log(`  restored ${name} from the live site`);
+      return restored;
+    } catch {
+      return {};
+    }
+  }
+}
+
 async function readArchive() {
   try {
     const saved = JSON.parse(await readFile(archiveFile, 'utf8'));
@@ -529,10 +546,10 @@ async function main() {
   const archive = pickArticles(candidates, KEEP_DAYS);
   tagAreas(archive, matchers);
   await writeStories(archive);
-  let digests = [];
-  try { digests = JSON.parse(await readFile(digestsFile, 'utf8')).digests || []; } catch { /* first run */ }
+  let digests = (await readSaved(digestsFile, 'digests.json')).digests || [];
   await writeDigests(archive, digests);
-  digests = digests.filter((d) => Date.now() - new Date(d.date) < 30 * 86400000);
+  // Wrap-up pages stay online (Google may have listed them); the front page shows only this week's.
+  digests = digests.filter((d) => Date.now() - new Date(d.date) < 5 * 365 * 86400000);
   for (const a of archive) {
     if (a.story) delete a.body;  // the full release text is only needed until the article is written
     a.page = a.story ? `berita/${pageSlug(a)}.html` : undefined;
@@ -585,11 +602,36 @@ async function main() {
 
   // One page per AI-written official release.
   const storyTemplate = withVersions(await readFile(path.join(root, 'src', 'article.html'), 'utf8'), '../');
-  const withPages = articles.filter((a) => a.story);
+  // Article pages are kept after their story leaves the weekly archive, so links (and Google's
+  // index) keep working. The newest copy of a page wins (it may have gained a second outlet).
+  const storedPages = (await readSaved(pagesFile, 'pages.json')).pages || [];
+  const pageFields = ({ title, story, link, also, source, date, image, page }) => ({ title, story, link, also, source, date, image, page });
+  const byPage = new Map(storedPages.map((a) => [a.page, a]));
+  for (const a of articles.filter((x) => x.story)) byPage.set(a.page, pageFields(a));
+  const withPages = [...byPage.values()].sort((a, b) => b.date.localeCompare(a.date));
+  await writeFile(pagesFile, JSON.stringify({ pages: withPages }) + '\n');
   if (withPages.length) await mkdir(path.join(dist, 'berita'), { recursive: true });
   for (const a of withPages) await writeFile(path.join(dist, a.page), renderStoryPage(storyTemplate, a));
   if (digests.length) await mkdir(path.join(dist, 'berita'), { recursive: true });
   for (const d of digests) await writeFile(path.join(dist, d.page), renderDigestPage(storyTemplate, d));
+
+  // For search engines: robots.txt points to sitemap.xml, which lists the front page and every
+  // article and wrap-up page with the date it was last changed.
+  const urls = [
+    { loc: `https://${DOMAIN}/`, lastmod: data.updated },
+    ...digests.map((d) => ({ loc: `https://${DOMAIN}/${d.page}`, lastmod: d.date })),
+    ...withPages.map((a) => ({ loc: `https://${DOMAIN}/${a.page}`, lastmod: a.date })),
+  ];
+  await writeFile(path.join(dist, 'sitemap.xml'), '<?xml version="1.0" encoding="UTF-8"?>\n'
+    + '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+    + urls.map((u) => `  <url><loc>${escapeHtml(u.loc)}</loc><lastmod>${u.lastmod.slice(0, 10)}</lastmod></url>`).join('\n')
+    + '\n</urlset>\n');
+  await writeFile(path.join(dist, 'robots.txt'), `User-agent: *\nAllow: /\nDisallow: /data/\n\nSitemap: https://${DOMAIN}/sitemap.xml\n`);
+
+  // Backup copies of the saved pages and wrap-ups (see readSaved).
+  await mkdir(path.join(dist, 'data'), { recursive: true });
+  await copyFile(pagesFile, path.join(dist, 'data', 'pages.json'));
+  await copyFile(digestsFile, path.join(dist, 'data', 'digests.json'));
 
   const json = JSON.stringify(data).replace(/</g, '\\u003c');
   const template = await readFile(path.join(root, 'src', 'index.html'), 'utf8');
