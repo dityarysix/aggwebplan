@@ -1,0 +1,18 @@
+[
+  { "name": "Antara Jatim",     "url": "https://jatim.antaranews.com/rss/terkini.xml",   "section": "jatim",     "lang": "id" },
+  { "name": "detikJatim",       "url": "https://www.detik.com/jatim/rss",                "section": "jatim",     "lang": "id" },
+  { "name": "Suara Surabaya",   "url": "https://www.suarasurabaya.net/feed/",            "section": "jatim",     "lang": "id" },
+  { "name": "Beritajatim",      "url": "https://beritajatim.com/feed/",                  "section": "jatim",     "lang": "id" },
+  { "name": "JatimTIMES",       "url": "https://jatimtimes.com/feed.xml",                "section": "jatim",     "lang": "id" },
+
+  { "name": "Antara",           "url": "https://www.antaranews.com/rss/terkini.xml",     "section": "indonesia", "lang": "id" },
+  { "name": "detikNews",        "url": "https://news.detik.com/rss",                     "section": "indonesia", "lang": "id" },
+  { "name": "CNN Indonesia",    "url": "https://www.cnnindonesia.com/nasional/rss",      "section": "indonesia", "lang": "id" },
+  { "name": "Tempo",            "url": "https://rss.tempo.co/nasional",                  "section": "indonesia", "lang": "id" },
+  { "name": "Liputan6",         "url": "https://feed.liputan6.com/rss/news",             "section": "indonesia", "lang": "id" },
+  { "name": "CNBC Indonesia",   "url": "https://www.cnbcindonesia.com/news/rss",         "section": "indonesia", "lang": "id" },
+  { "name": "Antara English",   "url": "https://en.antaranews.com/rss/news.xml",         "section": "indonesia", "lang": "en" },
+
+  { "name": "CNN Indonesia",    "url": "https://www.cnnindonesia.com/internasional/rss", "section": "dunia",     "lang": "id" },
+  { "name": "Antara English",   "url": "https://en.antaranews.com/rss/world.xml",        "section": "dunia",     "lang": "en" }
+]
