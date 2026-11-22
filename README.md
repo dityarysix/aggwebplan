@@ -80,3 +80,9 @@ the next hourly update.
 | `sumberDijeda` | pause sources (names as in the footer); their stories are hidden too | `["Malang Voice"]` |
 
 Keep the quotes, commas and square brackets exactly as in the examples.
+
+## Site pages (Tentang Kami, Kontak, Kebijakan Privasi, Pedoman)
+
+Each page is a Markdown file in `halaman/` with a header: `judul` (title), `alamat` (web
+address: `tentang` becomes `/tentang/`) and `deskripsi` (a one-line description for Google).
+Edit them on GitHub like a column; they are linked in the footer of every page.

@@ -9,7 +9,7 @@ import Parser from 'rss-parser';
 import { EnvHttpProxyAgent, setGlobalDispatcher } from 'undici';
 import { canRewrite, writeStory } from './rewrite.mjs';
 import { writeDigest } from './digest.mjs';
-import { readColumns } from './columns.mjs';
+import { readColumns, readPages } from './columns.mjs';
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const dist = path.join(root, 'dist');
@@ -827,6 +827,15 @@ async function main() {
   if (columns.length) console.log(`  Catatan Sepekan: ${columns.length} published`);
   data.columns = columns.slice(0, 1).map(({ html, ...c }) => ({ ...c, summary: shorten(c.summary, 320) }));
 
+  // The site's own pages (Tentang Kami, Kontak, Kebijakan Privasi, Pedoman), from halaman/*.md.
+  const sitePages = await readPages(path.join(root, 'halaman'));
+  const pageTemplate = withVersions(await readFile(path.join(root, 'src', 'page.html'), 'utf8'), '../');
+  for (const pg of sitePages) {
+    const fill = { TITLE: escapeHtml(pg.title), DESCRIPTION: escapeHtml(pg.description), URL: `https://${DOMAIN}/${pg.address}/`, BODY: pg.html };
+    await mkdir(path.join(dist, pg.address), { recursive: true });
+    await writeFile(path.join(dist, pg.address, 'index.html'), pageTemplate.replace(/\{\{(\w+)\}\}/g, (_, key) => fill[key] ?? ''));
+  }
+
   const archiveTemplate = withVersions(await readFile(path.join(root, 'src', 'archive.html'), 'utf8'), '../');
   await mkdir(path.join(dist, 'arsip'), { recursive: true });
   await writeFile(path.join(dist, 'arsip', 'index.html'), renderArchivePage(archiveTemplate, digests));
@@ -837,6 +846,7 @@ async function main() {
     { loc: `https://${DOMAIN}/`, lastmod: data.updated },
     { loc: `https://${DOMAIN}/arsip/`, lastmod: digests.at(-1)?.date || data.updated },
     { loc: `https://${DOMAIN}/catatan/`, lastmod: columns[0]?.date || data.updated },
+    ...sitePages.map((pg) => ({ loc: `https://${DOMAIN}/${pg.address}/`, lastmod: data.updated })),
     ...columns.map((c) => ({ loc: `https://${DOMAIN}/${c.page}`, lastmod: c.date })),
     ...digests.map((d) => ({ loc: `https://${DOMAIN}/${d.page}`, lastmod: d.date })),
     ...withPages.map((a) => ({ loc: `https://${DOMAIN}/${a.page}`, lastmod: a.date })),

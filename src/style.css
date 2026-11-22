@@ -225,3 +225,7 @@ a.more { display: inline-block; text-decoration: none; }
 .report__list { padding-left: 1.2rem; font: 400 .95rem/1.5 var(--sans); }
 .report__list li { margin-bottom: .6rem; }
 .report__list code { font-size: .75rem; color: var(--redup); word-break: break-all; }
+
+/* ---------- Footer links (Tentang Kami, Kontak, ...) ---------- */
+.footer__links { display: flex; flex-wrap: wrap; gap: .35rem 1.1rem; }
+.footer__links a { color: inherit; }

@@ -8,7 +8,7 @@ const escapeHtml = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
 // Bold, italic and links inside a line of already-escaped text.
 function inline(text) {
   return escapeHtml(text)
-    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_, label, href) => `<a href="${href}" rel="noopener">${label}</a>`)
+    .replace(/\[([^\]]+)\]\(((?:https?:\/\/|mailto:)[^\s)]+)\)/g, (_, label, href) => `<a href="${href}" rel="noopener">${label}</a>`)
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
     .replace(/\*([^*]+)\*/g, '<em>$1</em>');
 }
@@ -32,6 +32,27 @@ function firstParagraph(markdown) {
 }
 
 const slugify = (s) => s.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80);
+
+// Reads the site's own pages (Tentang Kami, Kontak, ...): one Markdown file each in halaman/,
+// with "judul", "alamat" (the web address, e.g. tentang -> /tentang/) and "deskripsi".
+export async function readPages(dir) {
+  let files = [];
+  try { files = await readdir(dir); } catch { return []; }
+  const pages = [];
+  for (const file of files.filter((f) => f.endsWith('.md') && !f.startsWith('_')).sort()) {
+    const text = (await readFile(path.join(dir, file), 'utf8')).replace(/\r\n/g, '\n');
+    const match = text.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
+    if (!match) { console.log(`  page skipped (no --- header): ${file}`); continue; }
+    const fields = Object.fromEntries(match[1].split('\n').map((line) => {
+      const i = line.indexOf(':');
+      return i < 0 ? [] : [line.slice(0, i).trim().toLowerCase(), line.slice(i + 1).trim()];
+    }).filter((pair) => pair.length));
+    const address = slugify(fields.alamat || file.replace(/\.md$/, ''));
+    if (!fields.judul || !address) { console.log(`  page skipped (needs judul): ${file}`); continue; }
+    pages.push({ title: fields.judul, address, description: fields.deskripsi || '', html: markdownToHtml(match[2]) });
+  }
+  return pages;
+}
 
 // Returns the published columns, newest first. A column with a future date (Jakarta time) waits.
 export async function readColumns(dir) {
