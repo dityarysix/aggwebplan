@@ -13,7 +13,7 @@ const archiveFile = path.join(root, 'data', 'archive.json');
 const DOMAIN = 'jatimsepekan.com';
 const EDITION_DAYS = 7;          // one edition = the last 7 days
 const KEEP_DAYS = 8;             // the archive keeps a little more than one edition
-const MAX_PER_SOURCE_PER_DAY = 10; // so one busy site cannot fill a whole day
+const MAX_PER_SOURCE_PER_DAY = 25; // so one busy site cannot fill a whole day
 const SUMMARY_LENGTH = 200;      // characters
 const USER_AGENT = 'Mozilla/5.0 (compatible; JatimSepekan/0.2; +https://' + DOMAIN + ')';
 
@@ -62,11 +62,14 @@ async function fetchSource(source) {
         // drop datelines such as "JATIMTIMES - " or "Surabaya (ANTARA) - " at the start
         .replace(/^[^.!?]{0,40}?\([A-Za-z]+\)\s*[-–—]\s*/, '')
         .replace(/^[A-Z][A-Z .]{2,30}\s[-–—]\s/, '');
+      const title = clean(item.title);
+      // some feeds repeat the headline at the start of the summary
+      const body = summary.startsWith(title) ? summary.slice(title.length).replace(/^[\s.:,–—-]+/, '') : summary;
       return {
-        title: clean(item.title),
+        title,
         link: (item.link || item.guid || '').trim(),
         date: isNaN(date) ? null : date.toISOString(),
-        summary: shorten(summary, SUMMARY_LENGTH),
+        summary: shorten(body, SUMMARY_LENGTH),
         image: findImage(item),
         source: source.name,
         section: source.section,
@@ -78,6 +81,29 @@ async function fetchSource(source) {
   } catch (err) {
     console.log(`  FAIL      ${source.name} (${source.section}): ${err.cause?.message || err.message}`);
     return [];
+  }
+}
+
+// Words that, placed before a strict word, show it is a place name: "Kota Batu", "Pemkab Malang".
+const PLACE_PREFIX = '(?:Kota|Kabupaten|Kab\\.|Pemkot|Pemkab|Polres|Polresta|Bupati|Wali Kota|Wakil Wali Kota|Wawali|DPRD|Kecamatan|Kejari|Kodim|Dinas\\s+\\S+|warga|di|ke|dari|asal|in|from|to|of)';
+
+function areaMatchers(areas) {
+  return Object.entries(areas)
+    .filter(([key]) => !key.startsWith('_'))
+    .map(([key, area]) => {
+      const escape = (w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const parts = [];
+      if (area.words.length) parts.push(`\\b(?:${area.words.map(escape).join('|')})\\b`);
+      if (area.strict.length) parts.push(`\\b${PLACE_PREFIX}\\s+(?:${area.strict.map(escape).join('|')})\\b`);
+      return { key, regex: new RegExp(parts.join('|')) };
+    });
+}
+
+function tagAreas(articles, matchers) {
+  for (const a of articles) {
+    if (a.section !== 'jatim') continue;
+    const text = a.title + ' ' + a.summary;
+    a.areas = matchers.filter((m) => m.regex.test(text)).map((m) => m.key);
   }
 }
 
@@ -120,7 +146,11 @@ async function main() {
   const previous = await readArchive();
 
   // Fresh copies first, so updated titles and images win over older saved copies.
-  const archive = pickArticles([...fresh, ...previous], KEEP_DAYS);
+  // Drop saved articles from sections that no longer exist in sources.json.
+  const sections = new Set(sources.map((s) => s.section));
+  const archive = pickArticles([...fresh, ...previous.filter((a) => sections.has(a.section))], KEEP_DAYS);
+  const areas = JSON.parse(await readFile(path.join(root, 'areas.json'), 'utf8'));
+  tagAreas(archive, areaMatchers(areas));
   if (archive.length === 0) throw new Error('No articles were collected. Check the network and sources.json.');
   await mkdir(path.dirname(archiveFile), { recursive: true });
   await writeFile(archiveFile, JSON.stringify({ updated: new Date().toISOString(), articles: archive }) + '\n');
@@ -154,7 +184,9 @@ async function main() {
   await writeFile(path.join(dist, 'index.html'), template.replace('__NEWS_DATA__', () => json));
 
   const count = (s) => articles.filter((a) => a.section === s).length;
-  console.log(`Done: ${articles.length} articles this edition (Jawa Timur ${count('jatim')}, Indonesia ${count('indonesia')}, Dunia ${count('dunia')}); archive holds ${archive.length} → dist/index.html`);
+  const inArea = (k) => articles.filter((a) => a.areas?.includes(k)).length;
+  console.log(`Done: ${articles.length} articles this edition; archive holds ${archive.length} → dist/index.html`);
+  console.log(`  Jawa Timur ${count('jatim')} (Surabaya Raya ${inArea('surabaya')}, Malang Raya ${inArea('malang')}, Madura ${inArea('madura')}, Mataraman ${inArea('mataraman')}), Dunia ${count('dunia')}`);
 }
 
 main().catch((err) => { console.error(err.message); process.exit(1); });

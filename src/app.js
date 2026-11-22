@@ -3,7 +3,9 @@
   'use strict';
 
   var data = JSON.parse(document.getElementById('news-data').textContent);
-  var SECTIONS = ['jatim', 'indonesia', 'dunia'];
+  // Tabs: 'utama' shows all East Java news, the area tabs show East Java news tagged with that
+  // area (see areas.json), 'dunia' shows world news.
+  var SECTIONS = ['utama', 'surabaya', 'malang', 'madura', 'mataraman', 'dunia'];
   var TZ = 'Asia/Jakarta';
   var EDITION_DAYS = 7;
   var HIGHLIGHTS = 3;
@@ -12,7 +14,7 @@
   var TEXT = {
     id: {
       skip: 'Langsung ke berita',
-      jatim: 'Jawa Timur', indonesia: 'Indonesia', dunia: 'Dunia', all: 'Semua',
+      utama: 'Sorotan Utama', dunia: 'Dunia', all: 'Semua',
       leadLabel: 'Laporan utama', highlightsLabel: 'Sorotan pekan ini', weekLabel: 'Sepanjang pekan',
       edition: 'Edisi',
       about: 'Jawa Timur Sepekan mengumpulkan judul dan ringkasan berita dari media tepercaya. Klik judul untuk membaca artikel lengkap di situs aslinya.',
@@ -21,14 +23,14 @@
       today: 'Hari ini', yesterday: 'Kemarin',
       more: function (n) { return 'Lihat semua ' + n + ' berita'; },
       less: 'Tampilkan lebih sedikit',
-      emptyLang: 'Belum ada berita berbahasa Inggris untuk bagian ini pekan ini.',
-      emptyAny: 'Belum ada berita di bagian ini pekan ini.',
+      emptyLang: 'Belum ada berita berbahasa Inggris untuk rubrik ini pekan ini.',
+      emptyAny: 'Belum ada berita di rubrik ini pekan ini.',
       showAll: 'Tampilkan semua bahasa',
       locale: 'id-ID',
     },
     en: {
       skip: 'Skip to the news',
-      jatim: 'East Java', indonesia: 'Indonesia', dunia: 'World', all: 'All',
+      utama: 'Top Stories', dunia: 'World', all: 'All',
       leadLabel: 'Top story', highlightsLabel: 'This week’s highlights', weekLabel: 'Through the week',
       edition: 'Edition',
       about: 'Jawa Timur Sepekan collects headlines and summaries from trusted news outlets. Click a headline to read the full article on the original site.',
@@ -37,8 +39,8 @@
       today: 'Today', yesterday: 'Yesterday',
       more: function (n) { return 'See all ' + n + ' stories'; },
       less: 'Show fewer',
-      emptyLang: 'There is no English news for this section this week.',
-      emptyAny: 'There is no news in this section this week.',
+      emptyLang: 'There is no English news for this area this week. English news from East Java’s own outlets is rare; Top Stories and World have more.',
+      emptyAny: 'There is no news in this area this week.',
       showAll: 'Show all languages',
       locale: 'en-GB',
     },
@@ -53,7 +55,7 @@
 
   function sectionFromHash() {
     var s = location.hash.slice(1);
-    return SECTIONS.indexOf(s) >= 0 ? s : 'jatim';
+    return SECTIONS.indexOf(s) >= 0 ? s : 'utama';
   }
 
   function t() { return TEXT[state.lang === 'en' ? 'en' : 'id']; }
@@ -250,7 +252,10 @@
     document.getElementById('sources').textContent = data.sources.join(', ');
 
     var articles = data.articles.filter(function (a) {
-      return a.section === state.section && (state.lang === 'all' || a.lang === state.lang);
+      if (state.lang !== 'all' && a.lang !== state.lang) return false;
+      if (state.section === 'dunia') return a.section === 'dunia';
+      if (a.section !== 'jatim') return false;
+      return state.section === 'utama' || (a.areas || []).indexOf(state.section) >= 0;
     });
     var featured = pickFeatured(articles);
     renderLead(featured[0]);
