@@ -29,6 +29,8 @@ and links every headline to the original article. Each edition covers the last 7
   Claude from 3-4 interesting stories, each story paragraph linked to its source. The newest
   wrap-up leads Sorotan Utama for 2 hours, and up to 12 hours (daily) or 24 hours (weekly)
   until a story reported by two outlets arrives. Saved in `data/digests.json`.
+- **Archive:** `/arsip/` lists every daily and weekly wrap-up, newest first, grouped by
+  month (template `src/archive.html`). Linked from the front page, footer and article pages.
 - **Search engines:** every build writes `sitemap.xml` (front page, every article and wrap-up
   page) and `robots.txt`. Article and wrap-up pages are kept permanently in
   `data/pages.json` and `data/digests.json`; a copy is published under `/data/` and is used

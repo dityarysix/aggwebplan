@@ -483,6 +483,32 @@ function renderDigestPage(template, d) {
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) => fill[key] ?? '');
 }
 
+// The archive page: every wrap-up, newest first, grouped by month (Jakarta time).
+function renderArchivePage(template, digests) {
+  const newestFirst = [...digests].sort((a, b) => b.date.localeCompare(a.date));
+  if (!newestFirst.length) {
+    return template.replace('{{LIST}}', '<p class="empty">Belum ada ringkasan. Ringkasan harian berikutnya terbit pukul 08.00 WIB.</p>');
+  }
+  const months = new Map();
+  for (const d of newestFirst) {
+    const local = new Date(new Date(d.date).getTime() + 7 * 3600000);
+    const month = `${MONTH_NAMES[local.getUTCMonth()]} ${local.getUTCFullYear()}`;
+    if (!months.has(month)) months.set(month, []);
+    months.get(month).push(d);
+  }
+  const html = [...months].map(([month, items]) => `<section class="archive__month">
+      <h2 class="archive__month-name">${escapeHtml(month)}</h2>
+      <ul class="archive__list">
+${items.map((d) => `        <li class="archive__item${d.kind === 'weekly' ? ' archive__item--weekly' : ''}">
+          <p class="meta"><time datetime="${escapeHtml(d.date)}">${escapeHtml(longDate(d.date))}</time><span class="official">${DIGEST_LABEL[d.kind]}</span></p>
+          <h3 class="title"><a href="../${escapeHtml(d.page)}">${escapeHtml(d.title)}</a></h3>
+          <p class="para">${escapeHtml(shorten(d.paragraphs[0].text, 240))}</p>
+        </li>`).join('\n')}
+      </ul>
+    </section>`).join('\n    ');
+  return template.replace('{{LIST}}', () => html);
+}
+
 // Writes articles for official releases that do not have one yet.
 async function writeStories(archive) {
   const waiting = archive.filter((a) => a.official && !a.story);
@@ -615,10 +641,15 @@ async function main() {
   if (digests.length) await mkdir(path.join(dist, 'berita'), { recursive: true });
   for (const d of digests) await writeFile(path.join(dist, d.page), renderDigestPage(storyTemplate, d));
 
+  const archiveTemplate = withVersions(await readFile(path.join(root, 'src', 'archive.html'), 'utf8'), '../');
+  await mkdir(path.join(dist, 'arsip'), { recursive: true });
+  await writeFile(path.join(dist, 'arsip', 'index.html'), renderArchivePage(archiveTemplate, digests));
+
   // For search engines: robots.txt points to sitemap.xml, which lists the front page and every
   // article and wrap-up page with the date it was last changed.
   const urls = [
     { loc: `https://${DOMAIN}/`, lastmod: data.updated },
+    { loc: `https://${DOMAIN}/arsip/`, lastmod: digests.at(-1)?.date || data.updated },
     ...digests.map((d) => ({ loc: `https://${DOMAIN}/${d.page}`, lastmod: d.date })),
     ...withPages.map((a) => ({ loc: `https://${DOMAIN}/${a.page}`, lastmod: a.date })),
   ];
