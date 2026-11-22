@@ -61,3 +61,22 @@ Then open http://localhost:8080.
 
 Behind a proxy that Node does not pick up automatically, run the build as
 `NODE_USE_ENV_PROXY=1 npm run build`.
+
+## Kontrol (editor's controls)
+
+**Report:** https://jatimsepekan.com/laporan/ (updated every hour, hidden from Google):
+stories per area and per source, which sources failed, and every AI-written page to review.
+
+**Controls:** edit `kontrol.json` on GitHub (pencil icon, then Commit changes). It applies at
+the next hourly update.
+
+| Setting | What it does | Example |
+|---|---|---|
+| `artikelAI` | AI articles from official releases on/off | `false` |
+| `ringkasanHarian` | daily wrap-up on/off | `false` |
+| `ringkasanSepekan` | weekly wrap-up on/off | `false` |
+| `kataTerlarang` | hide every story whose headline contains one of these words | `["judi online", "Honda"]` |
+| `tautanDihapus` | remove specific stories or pages: paste the story's link, or an AI page address from the report | `["https://jatimsepekan.com/berita/....html"]` |
+| `sumberDijeda` | pause sources (names as in the footer); their stories are hidden too | `["Malang Voice"]` |
+
+Keep the quotes, commas and square brackets exactly as in the examples.

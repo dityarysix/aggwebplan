@@ -102,6 +102,9 @@ function findImage(item) {
   return url ? decode(url) : null;
 }
 
+// What each source delivered in this run, for the report page (/laporan/).
+const sourceStatus = {};
+
 async function fetchSource(source) {
   try {
     const feed = await parser.parseString(await fetchText(source.url));
@@ -124,9 +127,11 @@ async function fetchSource(source) {
       };
     }).filter((a) => a.title && a.link.startsWith('http') && a.date);
     console.log(`  ok   ${String(items.length).padStart(3)}  ${source.name} (${source.section})`);
+    sourceStatus[source.name] = { ok: true, items: items.length };
     return items;
   } catch (err) {
     console.log(`  FAIL      ${source.name} (${source.section}): ${err.cause?.message || err.message}`);
+    sourceStatus[source.name] = { ok: false, error: err.cause?.message || err.message };
     return [];
   }
 }
@@ -246,9 +251,11 @@ async function fetchHtmlSource(source, known) {
       } catch (err) { console.log(`       skip ${href}: ${err.message}`); }
     }
     console.log(`  ok   ${String(links.length).padStart(3)}  ${source.name} (${fresh.length} new)`);
+    sourceStatus[source.name] = { ok: true, items: links.length };
     return items.filter((a) => a.title);
   } catch (err) {
     console.log(`  FAIL      ${source.name}: ${err.cause?.message || err.message}`);
+    sourceStatus[source.name] = { ok: false, error: err.cause?.message || err.message };
     return [];
   }
 }
@@ -286,9 +293,35 @@ function tagAreas(articles, matchers) {
 // Advertorials and shopping tips are not news: leave them out.
 const PROMOTIONAL = /\b(?:promo|diskon|cashback|bawa pulang|rekomendasi|konsumen|harga terjangkau|giveaway|kode voucher)\b/i;
 
+// The editor's controls (kontrol.json): words that hide a story, and links of stories or AI
+// pages to remove.
+let control = { artikelAI: true, ringkasanHarian: true, ringkasanSepekan: true, kataTerlarang: [], tautanDihapus: [], sumberDijeda: [] };
+let blockedWords = null;
+const removedLinks = new Set();
+const isRemoved = (a) => removedLinks.has(a.link) || (a.page && removedLinks.has(a.page));
+const isBlocked = (a) => isRemoved(a) || (blockedWords && blockedWords.test(a.title))
+  || (control.sumberDijeda || []).includes(a.source);  // a paused source's saved stories are hidden too
+
+async function readControl() {
+  try {
+    control = { ...control, ...JSON.parse(await readFile(path.join(root, 'kontrol.json'), 'utf8')) };
+  } catch (err) {
+    console.log(`  kontrol.json not read (${err.message}); using the defaults`);
+  }
+  const words = (control.kataTerlarang || []).map((w) => String(w).trim()).filter(Boolean);
+  if (words.length) blockedWords = new RegExp(`(?:${words.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'i');
+  for (const link of control.tautanDihapus || []) {
+    // Accept a full story link, or a link to a page on this site (https://jatimsepekan.com/berita/...).
+    const value = String(link).trim();
+    if (!value) continue;
+    removedLinks.add(value);
+    removedLinks.add(value.replace(`https://${DOMAIN}/`, '').replace(/^\//, ''));
+  }
+}
+
 function aboutEastJava(a, matchers) {
   const text = a.title + ' ' + a.summary;
-  if (PROMOTIONAL.test(a.title)) return false;
+  if (PROMOTIONAL.test(a.title) || isBlocked(a)) return false;
   if (a.localArea) return matchers.some((m) => m.regex.test(text) || (a.localArea === m.key && m.relaxed.test(text)));
   if (!a.official) return true;
   return text.toLowerCase().includes(a.place.toLowerCase()) || matchers.some((m) => m.regex.test(text));
@@ -463,7 +496,7 @@ function digestCandidates(archive, hours, limit) {
 const AREA_NAMES = { surabaya: 'Surabaya Raya', malang: 'Malang Raya', madura: 'Madura', mataraman: 'Mataraman', tapalkuda: 'Tapal Kuda' };
 
 async function writeDigests(archive, digests) {
-  const due = dueDigests(digests);
+  const due = dueDigests(digests).filter((d) => (d.kind === 'daily' ? control.ringkasanHarian : control.ringkasanSepekan) !== false);
   if (!due.length) return;
   if (!canRewrite()) {
     console.log(`  Wrap-ups off (no ANTHROPIC_API_KEY): ${due.map((d) => d.kind).join(', ')} not written`);
@@ -566,10 +599,85 @@ function renderColumnsPage(template, columns) {
   return template.replace('{{LIST}}', () => `<ul class="archive__list">\n${items}\n    </ul>`);
 }
 
+// ---------- The editor's report (/laporan/) ----------
+
+function renderReport({ sources, articles, archive, withPages, digests, columns, updated }) {
+  const dayAgo = Date.now() - 86400000;
+  const weekAgo = Date.now() - 7 * 86400000;
+  const rows = [...new Set(sources.map((s) => s.name))].map((name) => {
+    const status = sourceStatus[name] || { ok: false, error: 'not fetched' };
+    const mine = articles.filter((a) => a.source === name || a.also?.source === name);
+    const today = mine.filter((a) => new Date(a.date) >= dayAgo).length;
+    return `<tr class="${status.ok ? '' : 'report__fail'}"><td>${escapeHtml(name)}</td><td>${status.ok ? 'OK' : `GAGAL: ${escapeHtml(status.error)}`}</td><td>${today}</td><td>${mine.length}</td></tr>`;
+  });
+  const areaRows = ['surabaya', 'malang', 'madura', 'mataraman', 'tapalkuda'].map((k) => {
+    const inArea = articles.filter((a) => a.areas?.includes(k));
+    return `<tr><td>${AREA_NAMES[k]}</td><td>${inArea.filter((a) => new Date(a.date) >= dayAgo).length}</td><td>${inArea.length}</td></tr>`;
+  });
+  const recentPages = withPages.filter((a) => new Date(a.date) >= weekAgo);
+  const pageList = (items, label) => items.length
+    ? `<ul class="report__list">${items.map((x) => `<li><a href="../${escapeHtml(x.page)}">${escapeHtml(x.title)}</a> <span class="meta">${escapeHtml(label(x))}</span><br><code>https://${DOMAIN}/${escapeHtml(x.page)}</code></li>`).join('')}</ul>`
+    : '<p class="meta">Belum ada.</p>';
+  const blocked = (control.kataTerlarang || []).length + (control.tautanDihapus || []).length;
+  const onOff = (v) => (v === false ? 'MATI' : 'HIDUP');
+  return `<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Laporan redaksi — Jawa Timur Sepekan</title>
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+  <main class="page report">
+    <p class="rubric">Laporan redaksi</p>
+    <h1 class="archive__title">Laporan Jawa Timur Sepekan</h1>
+    <p class="meta">Diperbarui ${escapeHtml(longDate(updated))}, ${new Date(new Date(updated).getTime() + 7 * 3600000).toISOString().slice(11, 16)} WIB. Halaman ini tidak muncul di Google.</p>
+
+    <h2>Ringkasan</h2>
+    <table class="report__table"><tbody>
+      <tr><td>Berita di edisi ini (7 hari)</td><td>${articles.length}</td></tr>
+      <tr><td>Berita 24 jam terakhir</td><td>${articles.filter((a) => new Date(a.date) >= dayAgo).length}</td></tr>
+      <tr><td>Disimpan dalam arsip</td><td>${archive.length}</td></tr>
+      <tr><td>Sumber gagal pada pembaruan ini</td><td>${sources.filter((s) => !sourceStatus[s.name]?.ok).length} dari ${sources.length}</td></tr>
+      <tr><td>Artikel AI (rilis resmi), 7 hari</td><td>${recentPages.length}</td></tr>
+      <tr><td>Ringkasan harian / sepekan tersimpan</td><td>${digests.filter((d) => d.kind === 'daily').length} / ${digests.filter((d) => d.kind === 'weekly').length}</td></tr>
+      <tr><td>Catatan Sepekan terbit</td><td>${columns.length}</td></tr>
+      <tr><td>Aturan blokir di kontrol.json</td><td>${blocked}</td></tr>
+      <tr><td>Artikel AI / ringkasan harian / ringkasan sepekan</td><td>${onOff(control.artikelAI)} / ${onOff(control.ringkasanHarian)} / ${onOff(control.ringkasanSepekan)}</td></tr>
+    </tbody></table>
+
+    <h2>Per rubrik</h2>
+    <table class="report__table"><thead><tr><th>Rubrik</th><th>24 jam</th><th>7 hari</th></tr></thead><tbody>${areaRows.join('')}</tbody></table>
+
+    <h2>Per sumber</h2>
+    <table class="report__table"><thead><tr><th>Sumber</th><th>Pembaruan terakhir</th><th>24 jam</th><th>7 hari</th></tr></thead><tbody>${rows.join('')}</tbody></table>
+
+    <h2>Periksa tulisan AI</h2>
+    <p class="meta">Untuk menghapus satu halaman, salin alamatnya (baris abu-abu) ke "tautanDihapus" di kontrol.json.</p>
+    <h3>Ringkasan</h3>
+    ${pageList([...digests].reverse(), (d) => `${DIGEST_LABEL[d.kind]}, ${longDate(d.date)}`)}
+    <h3>Artikel dari rilis resmi (7 hari)</h3>
+    ${pageList(recentPages, (a) => `${a.source}, ${longDate(a.date)}`)}
+  </main>
+</body>
+</html>
+`;
+}
+
+// A short version for the GitHub Actions run page.
+function reportSummary(sources, articles) {
+  const failed = sources.filter((s) => !sourceStatus[s.name]?.ok);
+  return `### Jawa Timur Sepekan\n\n- Berita di edisi ini: **${articles.length}**\n- Sumber gagal: **${failed.length}** dari ${sources.length}${failed.length ? ` (${failed.map((s) => s.name).join(', ')})` : ''}\n- Laporan lengkap: https://${DOMAIN}/laporan/\n`;
+}
+
 // Writes articles for official releases that do not have one yet.
 async function writeStories(archive) {
   const waiting = archive.filter((a) => a.official && !a.story);
   if (!waiting.length) return;
+  if (control.artikelAI === false) { console.log('  AI release articles switched off in kontrol.json'); return; }
   if (!canRewrite()) {
     console.log(`  AI writing off (no ANTHROPIC_API_KEY): ${waiting.length} official releases keep their summary only`);
     return;
@@ -612,7 +720,10 @@ async function readArchive() {
 }
 
 async function main() {
-  const sources = JSON.parse(await readFile(path.join(root, 'sources.json'), 'utf8'));
+  await readControl();
+  const paused = new Set(control.sumberDijeda || []);
+  const sources = JSON.parse(await readFile(path.join(root, 'sources.json'), 'utf8')).filter((s) => !paused.has(s.name));
+  if (paused.size) console.log(`  paused in kontrol.json: ${[...paused].join(', ')}`);
   dailyLimits = Object.fromEntries(sources.filter((s) => s.maxPerDay).map((s) => [s.name, s.maxPerDay]));
   console.log(`Collecting news from ${sources.length} sources…`);
   const saved = await readArchive();
@@ -638,6 +749,7 @@ async function main() {
   await writeStories(archive);
   let digests = (await readSaved(digestsFile, 'digests.json')).digests || [];
   await writeDigests(archive, digests);
+  digests = digests.filter((d) => !removedLinks.has(d.page));  // removed in kontrol.json
   // Wrap-up pages stay online (Google may have listed them); the front page shows only this week's.
   digests = digests.filter((d) => Date.now() - new Date(d.date) < 5 * 365 * 86400000);
   for (const a of archive) {
@@ -698,7 +810,7 @@ async function main() {
   const pageFields = ({ title, story, link, also, source, date, image, page }) => ({ title, story, link, also, source, date, image, page });
   const byPage = new Map(storedPages.map((a) => [a.page, a]));
   for (const a of articles.filter((x) => x.story)) byPage.set(a.page, pageFields(a));
-  const withPages = [...byPage.values()].sort((a, b) => b.date.localeCompare(a.date));
+  const withPages = [...byPage.values()].filter((a) => !isRemoved(a)).sort((a, b) => b.date.localeCompare(a.date));
   await writeFile(pagesFile, JSON.stringify({ pages: withPages }) + '\n');
   if (withPages.length) await mkdir(path.join(dist, 'berita'), { recursive: true });
   for (const a of withPages) await writeFile(path.join(dist, a.page), renderStoryPage(storyTemplate, a));
@@ -733,7 +845,13 @@ async function main() {
     + '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
     + urls.map((u) => `  <url><loc>${escapeHtml(u.loc)}</loc><lastmod>${u.lastmod.slice(0, 10)}</lastmod></url>`).join('\n')
     + '\n</urlset>\n');
-  await writeFile(path.join(dist, 'robots.txt'), `User-agent: *\nAllow: /\nDisallow: /data/\n\nSitemap: https://${DOMAIN}/sitemap.xml\n`);
+  await writeFile(path.join(dist, 'robots.txt'), `User-agent: *\nAllow: /\nDisallow: /data/\nDisallow: /laporan/\n\nSitemap: https://${DOMAIN}/sitemap.xml\n`);
+
+  // The editor's report (/laporan/): what came in, what failed, and every AI-written page to review.
+  const report = renderReport({ sources, articles, archive, withPages, digests, columns, updated: data.updated });
+  await mkdir(path.join(dist, 'laporan'), { recursive: true });
+  await writeFile(path.join(dist, 'laporan', 'index.html'), withVersions(report, '../'));
+  if (process.env.GITHUB_STEP_SUMMARY) await writeFile(process.env.GITHUB_STEP_SUMMARY, reportSummary(sources, articles), { flag: 'a' });
 
   // Backup copies of the saved pages and wrap-ups (see readSaved).
   await mkdir(path.join(dist, 'data'), { recursive: true });

@@ -1,0 +1,11 @@
+{
+  "_help": "Pengaturan situs. Ubah di GitHub (ikon pensil), lalu Commit changes. Berlaku pada pembaruan berikutnya (paling lambat 1 jam). Lihat README di bagian 'Kontrol'.",
+
+  "artikelAI": true,
+  "ringkasanHarian": true,
+  "ringkasanSepekan": true,
+
+  "kataTerlarang": [],
+  "tautanDihapus": [],
+  "sumberDijeda": []
+}
