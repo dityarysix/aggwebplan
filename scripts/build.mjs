@@ -773,7 +773,9 @@ async function main() {
     updated: new Date().toISOString(),
     sources: [...new Set(sources.filter((s) => !s.official).map((s) => s.name))],
     official: [...new Set(sources.filter((s) => s.official).map((s) => s.name))],
-    articles: articles.map(({ story, ...rest }) => rest),  // the full article text lives on its own page
+    // Only what the page shows: the full article text lives on its own page, and build-only
+    // fields stay out.
+    articles: articles.map(({ story, body, clockFixed, localArea, homeArea, place, ...rest }) => rest),
     // Wrap-ups of this edition, for the front page (newest first).
     digests: digests.filter((d) => new Date(d.date).getTime() >= editionStart).reverse()
       .map((d) => ({ kind: d.kind, title: d.title, date: d.date, page: d.page, image: d.image, summary: shorten(d.paragraphs[0].text, 260) })),
@@ -883,6 +885,23 @@ async function main() {
   await mkdir(path.join(dist, 'data'), { recursive: true });
   await copyFile(pagesFile, path.join(dist, 'data', 'pages.json'));
   await copyFile(digestsFile, path.join(dist, 'data', 'digests.json'));
+
+  // Speed: the front page carries only the newest stories (enough for the top of every tab and
+  // today's list). The whole week is in edisi.json, which the page loads when the reader scrolls
+  // down, switches tab or opens a day.
+  const allArticles = data.articles;
+  const newestFirst = [...allArticles].sort((a, b) => b.date.localeCompare(a.date));
+  const first = new Set(newestFirst.slice(0, 120));
+  for (const key of ['surabaya', 'malang', 'madura', 'mataraman', 'tapalkuda']) {
+    newestFirst.filter((a) => a.areas?.includes(key)).slice(0, 12).forEach((a) => first.add(a));
+  }
+  newestFirst.filter((a) => a.section === 'dunia').slice(0, 12).forEach((a) => first.add(a));
+  newestFirst.filter((a) => a.lang === 'en').slice(0, 12).forEach((a) => first.add(a));
+  const fullJson = JSON.stringify({ articles: allArticles });
+  const fullName = `edisi.json?v=${createHash('sha1').update(fullJson).digest('hex').slice(0, 8)}`;
+  await writeFile(path.join(dist, 'edisi.json'), fullJson);
+  data.articles = newestFirst.filter((a) => first.has(a));
+  data.partial = { file: fullName, total: allArticles.length };
 
   const json = JSON.stringify(data).replace(/</g, '\\u003c');
   const template = await readFile(path.join(root, 'src', 'index.html'), 'utf8');

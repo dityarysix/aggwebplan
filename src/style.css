@@ -203,7 +203,13 @@ a.more { display: inline-block; text-decoration: none; }
 .archive__item--weekly .title { font-size: 1.45rem; font-weight: 700; }
 
 /* ---------- Catatan Sepekan (the editor's own column) ---------- */
-.column { padding: clamp(2rem, 4vw, 3rem) 0; border-bottom: 1px solid var(--batu); }
+.picks {
+  display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: clamp(1.5rem, 4vw, 3rem); align-items: start;
+  padding: clamp(2rem, 4vw, 3rem) 0; border-bottom: 1px solid var(--batu);
+}
+.picks:not(:has(> section:not([hidden]))) { display: none; }
+.picks > section:only-child, .picks > section[hidden] + section, .picks > section:first-child:has(+ section[hidden]) { grid-column: 1 / -1; }
+.column { min-width: 0; }
 .column__card { max-width: 44rem; padding-left: 1.25rem; border-left: 3px solid var(--bata); }
 .column__card .title { margin: 0 0 .4rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1.15; font-weight: 700; font-style: italic; }
 .column__card .para { font-size: 1.1rem; line-height: 1.65; margin-bottom: 1rem; }
@@ -229,3 +235,15 @@ a.more { display: inline-block; text-decoration: none; }
 /* ---------- Footer links (Tentang Kami, Kontak, ...) ---------- */
 .footer__links { display: flex; flex-wrap: wrap; gap: .35rem 1.1rem; }
 .footer__links a { color: inherit; }
+
+/* ---------- Ringkasan Harian box (next to Catatan Sepekan) ---------- */
+.daily__card { padding: 1.25rem 1.4rem 1.4rem; background: var(--kertas-tua); border-radius: 3px; }
+.daily__card .meta { margin-bottom: .35rem; }
+.daily__card .title { margin: 0 0 .5rem; font-size: 1.35rem; line-height: 1.2; font-weight: 700; }
+.daily__card .para { font-size: 1rem; line-height: 1.6; margin: 0 0 1rem; }
+.daily__card .more { margin-right: 1rem; }
+.daily__weekly { margin: 1.1rem 0 0; padding-top: .9rem; border-top: 1px solid var(--batu); font: 400 .88rem/1.45 var(--sans); color: var(--redup); }
+.daily__weekly a { color: var(--tinta); font-weight: 600; }
+@media (max-width: 860px) {
+  .picks { grid-template-columns: minmax(0, 1fr); }
+}

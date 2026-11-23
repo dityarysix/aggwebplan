@@ -222,6 +222,38 @@
     card.appendChild(all);
   }
 
+  // "Ringkasan Harian" box next to the column: the latest daily wrap-up, the latest weekly one,
+  // and the archive (Sorotan Utama only, in Indonesian).
+  function renderDaily() {
+    var section = document.getElementById('daily');
+    var card = document.getElementById('daily-card');
+    var daily = DIGESTS.filter(function (d) { return d.digest === 'daily'; })[0];
+    var weekly = DIGESTS.filter(function (d) { return d.digest === 'weekly'; })[0];
+    section.hidden = !daily || state.section !== 'utama' || state.lang === 'en';
+    card.replaceChildren();
+    if (section.hidden) return;
+    card.appendChild(el('p', 'meta', fmt(new Date(daily.date), { weekday: 'long', day: 'numeric', month: 'long' })));
+    var h = el('h3', 'title');
+    var a = el('a', null, daily.title);
+    a.href = daily.page;
+    h.appendChild(a);
+    card.appendChild(h);
+    card.appendChild(el('p', 'para', daily.summary.length > 200 ? daily.summary.slice(0, daily.summary.lastIndexOf(' ', 200)) + '…' : daily.summary));
+    var more = el('a', 'more', 'Baca ringkasan');
+    more.href = daily.page;
+    card.appendChild(more);
+    var all = el('a', 'column__all', 'Semua ringkasan');
+    all.href = 'arsip/';
+    card.appendChild(all);
+    if (weekly) {
+      var line = el('p', 'daily__weekly', 'Ringkasan sepekan terakhir: ');
+      var w = el('a', null, weekly.title);
+      w.href = weekly.page;
+      line.appendChild(w);
+      card.appendChild(line);
+    }
+  }
+
   function renderHighlights(articles) {
     var section = document.getElementById('highlights');
     var grid = document.getElementById('highlights-grid');
@@ -275,6 +307,7 @@
         button.setAttribute('aria-expanded', String(isOpen));
         button.addEventListener('click', function () {
           state.open[group.key] = !isOpen;
+          loadFull();
           render();
           var again = document.querySelector('[data-day="' + group.key + '"] .more');
           if (again) again.focus();
@@ -382,17 +415,55 @@
       lead = leadDigest(articles);
       listed = articles.concat(DIGESTS).sort(function (a, b) { return a.date < b.date ? 1 : -1; });
     }
-    var featured = pickFeatured(articles, lead);
+    var featured = stableFeatured(pickFeatured(articles, lead), articles);
     renderLead(featured[0]);
     renderHighlights(featured.slice(1));
     renderColumn();
+    renderDaily();
     renderDays(listed.filter(function (a) { return featured.indexOf(a) < 0; }));
     if (!articles.length) renderEmpty();
+  }
+
+  // The top story and highlights stay put when the rest of the week arrives (no jumping page).
+  var featuredCache = {};
+  function stableFeatured(fresh, articles) {
+    var key = state.section + '|' + state.lang + '|' + (fresh[0] && fresh[0].digest ? 'd' : 'a');
+    var cached = featuredCache[key];
+    if (cached) {
+      var pool = articles.concat(DIGESTS);
+      var again = cached.map(function (link) { return pool.find(function (a) { return a.link === link; }); });
+      if (again.every(Boolean)) return again;
+    }
+    featuredCache[key] = fresh.map(function (a) { return a.link; });
+    return fresh;
+  }
+
+  // Speed: the page arrives with the newest stories only. The whole week (edisi.json) is loaded
+  // when the reader needs it: scrolling down to "Sepanjang pekan", switching tab or language,
+  // or opening a day.
+  var fullLoaded = !data.partial;
+  var fullLoading = false;
+  function loadFull() {
+    if (fullLoaded || fullLoading) return;
+    fullLoading = true;
+    fetch(data.partial.file).then(function (r) { return r.json(); }).then(function (full) {
+      data.articles = full.articles;
+      fullLoaded = true;
+      render();
+    }).catch(function () { fullLoading = false; });  // try again on the next trigger
+  }
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver(function (entries, observer) {
+      if (entries.some(function (e) { return e.isIntersecting; })) { loadFull(); observer.disconnect(); }
+    }, { rootMargin: '200px 0px' }).observe(document.querySelector('.week'));
+  } else {
+    loadFull();
   }
 
   function setLang(lang) {
     state.lang = lang;
     localStorage.setItem('js-lang', lang);
+    loadFull();
     render();
   }
 
@@ -404,10 +475,12 @@
   window.addEventListener('hashchange', function () {
     state.section = sectionFromHash();
     state.open = {};
+    loadFull();
     render();
     window.scrollTo({ top: 0 });
   });
 
   render();
+  if (state.section !== 'utama' || state.lang !== 'all') loadFull();  // opened on an area tab
   setInterval(render, 60000); // keeps "5 minutes ago" labels fresh
 })();
