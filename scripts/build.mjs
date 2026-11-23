@@ -19,6 +19,7 @@ const pagesFile = path.join(root, 'data', 'pages.json');  // every AI-written ar
 
 const DOMAIN = 'jatimsepekan.com';
 const ADSENSE_CLIENT = 'ca-pub-4160138577851742';  // Google AdSense publisher ID
+const ANALYTICS_ID = 'G-VXYM2H2SEV';  // Google Analytics 4 measurement ID
 const EDITION_DAYS = 7;          // one edition = the last 7 days
 const KEEP_DAYS = 8;             // the archive keeps a little more than one edition
 const MAX_PER_SOURCE_PER_DAY = 25; // so one busy site cannot fill a whole day
@@ -803,10 +804,14 @@ async function main() {
   // site and they are switched on there). "iklan": false in kontrol.json removes it.
   const adsCode = control.iklan === false ? ''
     : `  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT}" crossorigin="anonymous"></script>\n`;
+  // Google Analytics (visitor counts, "Realtime" report). "analitik": false in kontrol.json removes it.
+  const analyticsCode = control.analitik === false ? ''
+    : `  <script async src="https://www.googletagmanager.com/gtag/js?id=${ANALYTICS_ID}"></script>\n`
+      + `  <script>window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', '${ANALYTICS_ID}');</script>\n`;
   const withVersions = (html, prefix) => html
     .replace(`href="${prefix}style.css"`, `href="${prefix}style.css?v=${versions['style.css']}"`)
     .replace(`src="${prefix}app.js"`, `src="${prefix}app.js?v=${versions['app.js']}"`)
-    .replace('</head>', () => (html.includes('noindex') ? '' : adsCode) + '</head>');
+    .replace('</head>', () => (html.includes('noindex') ? '' : analyticsCode + adsCode) + '</head>');
 
   // One page per AI-written official release.
   const storyTemplate = withVersions(await readFile(path.join(root, 'src', 'article.html'), 'utf8'), '../');

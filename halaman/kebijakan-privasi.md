@@ -4,7 +4,7 @@ alamat: kebijakan-privasi
 deskripsi: Kebijakan privasi Jawa Timur Sepekan: data apa yang dikumpulkan, penggunaan cookie, dan iklan Google AdSense.
 ---
 
-Kebijakan ini menjelaskan data apa yang dikumpulkan saat Anda mengunjungi jatimsepekan.com dan bagaimana data tersebut digunakan. Terakhir diperbarui: 22 November 2026.
+Kebijakan ini menjelaskan data apa yang dikumpulkan saat Anda mengunjungi jatimsepekan.com dan bagaimana data tersebut digunakan. Terakhir diperbarui: 23 November 2026.
 
 ## Data yang kami kumpulkan
 
@@ -14,6 +14,10 @@ Jawa Timur Sepekan tidak meminta Anda membuat akun dan tidak meminta data pribad
 - **Data teknis server.** Situs ini di-*hosting* oleh GitHub Pages. Seperti layanan *hosting* pada umumnya, GitHub dapat mencatat data teknis seperti alamat IP untuk keamanan dan pemeliharaan layanan, sesuai [Pernyataan Privasi GitHub](https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement).
 - **Gambar dari situs sumber.** Foto berita dimuat langsung dari situs media sumber. Saat gambar dimuat, situs tersebut dapat menerima data teknis seperti alamat IP Anda.
 - **Surel.** Jika Anda mengirim surel kepada kami, kami menyimpan surel tersebut hanya untuk membalas dan menindaklanjuti pesan Anda.
+
+## Statistik pengunjung
+
+Kami menggunakan Google Analytics untuk mengetahui jumlah pengunjung, halaman yang paling banyak dibaca, dan perangkat yang digunakan, agar situs ini dapat terus kami perbaiki. Google Analytics menggunakan cookie dan mengumpulkan data teknis seperti perkiraan lokasi (kota atau negara), jenis perangkat, dan halaman yang dikunjungi. Data ini tidak kami gunakan untuk mengenali Anda secara pribadi. Anda dapat mencegah pengumpulan data oleh Google Analytics dengan memasang [pengaya penonaktifan Google Analytics](https://tools.google.com/dlpage/gaoptout) di peramban Anda.
 
 ## Iklan dan cookie
 
