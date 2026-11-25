@@ -461,15 +461,18 @@ function renderStoryPage(template, a) {
 const DIGEST_LABEL = { daily: 'Ringkasan harian', weekly: 'Ringkasan sepekan' };
 const jakartaNow = () => new Date(Date.now() + 7 * 3600000);  // read with getUTC* methods
 
-// Which wrap-ups are due now: daily from 08:00 WIB, weekly from Friday 17:00 WIB (until Saturday
-// night, in case GitHub skipped a run). The key is the Jakarta date, so each is written once.
+// Which wrap-ups are due now: daily from 07:55 WIB, weekly from Friday 16:55 WIB (until Saturday
+// night, in case GitHub skipped a run). An external alarm (cron-job.org) starts the job at 07:56 and
+// 16:56 so the wrap-up is live at about 08:00 / 17:00; GitHub's own schedule at 08:03 / 17:03 is the
+// backup. The key is the Jakarta date, so each is written once.
 function dueDigests(digests) {
   const now = jakartaNow();
   const today = now.toISOString().slice(0, 10);
   const due = [];
-  if (now.getUTCHours() >= 8) due.push({ kind: 'daily', key: today });
+  const minutes = now.getUTCHours() * 60 + now.getUTCMinutes();
+  if (minutes >= 7 * 60 + 55) due.push({ kind: 'daily', key: today });
   const day = now.getUTCDay();
-  if ((day === 5 && now.getUTCHours() >= 17) || day === 6) {
+  if ((day === 5 && minutes >= 16 * 60 + 55) || day === 6) {
     const friday = new Date(now.getTime() - (day - 5) * 86400000).toISOString().slice(0, 10);
     due.push({ kind: 'weekly', key: friday });
   }
