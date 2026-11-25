@@ -88,3 +88,23 @@ Keep the quotes, commas and square brackets exactly as in the examples.
 Each page is a Markdown file in `halaman/` with a header: `judul` (title), `alamat` (web
 address: `tentang` becomes `/tentang/`) and `deskripsi` (a one-line description for Google).
 Edit them on GitHub like a column; they are linked in the footer of every page.
+
+## Wrap-up timing (cron-job.org)
+
+GitHub often starts scheduled runs late or skips them at busy times. So two external alarms on
+cron-job.org (account of the site owner, time zone Asia/Jakarta) start the workflow on time:
+
+| Alarm | Schedule | Result |
+|---|---|---|
+| Jatim Sepekan 07:56 | every day 07:56 | daily wrap-up live around 08:00 WIB |
+| Jatim Sepekan Jumat 16:56 | Fridays 16:56 (`56 16 * * 5`) | weekly wrap-up live around 17:00 WIB |
+
+Each sends `POST https://api.github.com/repos/dityarysix/aggwebplan/actions/workflows/publish.yml/dispatches`
+with body `{"ref":"main"}` and the headers `Authorization: Bearer <token>`,
+`Accept: application/vnd.github+json`, `X-GitHub-Api-Version: 2022-11-28`,
+`Content-Type: application/json`. The token is a fine-grained GitHub token limited to this
+repository with only "Actions: Read and write". A successful call returns 204.
+
+Wrap-ups may be written from 07:55 / Friday 16:55 WIB. GitHub's own schedule (08:03 / 17:03 WIB)
+remains as a backup. If the alarms stop working, check the job history on cron-job.org (401 means
+the token was deleted or expired: create a new one and update the Authorization header).
