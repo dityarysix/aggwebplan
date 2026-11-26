@@ -1,0 +1,309 @@
+{
+ "_help": "Kota/kabupaten for the Jadwal Salat and Cuaca panels. adm4 = BMKG village code in the town centre (weather); lat/lon = for prayer times; area = group in the city picker.",
+ "cities": [
+  {
+   "id": "gresik",
+   "name": "Gresik",
+   "area": "surabaya",
+   "adm4": "35.25.16.1001",
+   "lat": -7.1544,
+   "lon": 112.6364
+  },
+  {
+   "id": "kab-mojokerto",
+   "name": "Kab. Mojokerto",
+   "area": "surabaya",
+   "adm4": "35.16.08.1004",
+   "lat": -7.523,
+   "lon": 112.5571
+  },
+  {
+   "id": "kota-mojokerto",
+   "name": "Kota Mojokerto",
+   "area": "surabaya",
+   "adm4": "35.76.02.1001",
+   "lat": -7.4741,
+   "lon": 112.4554
+  },
+  {
+   "id": "lamongan",
+   "name": "Lamongan",
+   "area": "surabaya",
+   "adm4": "35.24.22.1012",
+   "lat": -7.1086,
+   "lon": 112.4063
+  },
+  {
+   "id": "sidoarjo",
+   "name": "Sidoarjo",
+   "area": "surabaya",
+   "adm4": "35.15.08.1004",
+   "lat": -7.4613,
+   "lon": 112.7105
+  },
+  {
+   "id": "surabaya",
+   "name": "Surabaya",
+   "area": "surabaya",
+   "adm4": "35.78.07.1001",
+   "lat": -7.2681,
+   "lon": 112.7441
+  },
+  {
+   "id": "batu",
+   "name": "Batu",
+   "area": "malang",
+   "adm4": "35.79.01.1001",
+   "lat": -7.8812,
+   "lon": 112.5406
+  },
+  {
+   "id": "kab-malang",
+   "name": "Kab. Malang",
+   "area": "malang",
+   "adm4": "35.07.13.1007",
+   "lat": -8.1389,
+   "lon": 112.5784
+  },
+  {
+   "id": "kota-malang",
+   "name": "Kota Malang",
+   "area": "malang",
+   "adm4": "35.73.02.1001",
+   "lat": -7.9732,
+   "lon": 112.6346
+  },
+  {
+   "id": "bangkalan",
+   "name": "Bangkalan",
+   "area": "madura",
+   "adm4": "35.26.01.1001",
+   "lat": -7.0456,
+   "lon": 112.7406
+  },
+  {
+   "id": "pamekasan",
+   "name": "Pamekasan",
+   "area": "madura",
+   "adm4": "35.28.04.1001",
+   "lat": -7.1819,
+   "lon": 113.4904
+  },
+  {
+   "id": "sampang",
+   "name": "Sampang",
+   "area": "madura",
+   "adm4": "35.27.03.1003",
+   "lat": -7.2137,
+   "lon": 113.2453
+  },
+  {
+   "id": "sumenep",
+   "name": "Sumenep",
+   "area": "madura",
+   "adm4": "35.29.01.1015",
+   "lat": -7.0054,
+   "lon": 113.8639
+  },
+  {
+   "id": "bojonegoro",
+   "name": "Bojonegoro",
+   "area": "mataraman",
+   "adm4": "35.22.15.1001",
+   "lat": -7.1679,
+   "lon": 111.8636
+  },
+  {
+   "id": "jombang",
+   "name": "Jombang",
+   "area": "mataraman",
+   "adm4": "35.17.09.1002",
+   "lat": -7.5578,
+   "lon": 112.2304
+  },
+  {
+   "id": "kab-blitar",
+   "name": "Kab. Blitar",
+   "area": "mataraman",
+   "adm4": "35.05.10.1008",
+   "lat": -8.128,
+   "lon": 112.2181
+  },
+  {
+   "id": "kab-kediri",
+   "name": "Kab. Kediri",
+   "area": "mataraman",
+   "adm4": "35.06.25.2001",
+   "lat": -7.8262,
+   "lon": 112.0613
+  },
+  {
+   "id": "kab-madiun",
+   "name": "Kab. Madiun",
+   "area": "mataraman",
+   "adm4": "35.19.11.1012",
+   "lat": -7.5419,
+   "lon": 111.6587
+  },
+  {
+   "id": "kota-blitar",
+   "name": "Kota Blitar",
+   "area": "mataraman",
+   "adm4": "35.72.01.1001",
+   "lat": -8.1026,
+   "lon": 112.1651
+  },
+  {
+   "id": "kota-kediri",
+   "name": "Kota Kediri",
+   "area": "mataraman",
+   "adm4": "35.71.02.1001",
+   "lat": -7.7981,
+   "lon": 112.0103
+  },
+  {
+   "id": "kota-madiun",
+   "name": "Kota Madiun",
+   "area": "mataraman",
+   "adm4": "35.77.03.1001",
+   "lat": -7.6375,
+   "lon": 111.5347
+  },
+  {
+   "id": "magetan",
+   "name": "Magetan",
+   "area": "mataraman",
+   "adm4": "35.20.06.1002",
+   "lat": -7.6579,
+   "lon": 111.3412
+  },
+  {
+   "id": "nganjuk",
+   "name": "Nganjuk",
+   "area": "mataraman",
+   "adm4": "35.18.13.1001",
+   "lat": -7.6163,
+   "lon": 111.8861
+  },
+  {
+   "id": "ngawi",
+   "name": "Ngawi",
+   "area": "mataraman",
+   "adm4": "35.21.09.1013",
+   "lat": -7.4075,
+   "lon": 111.4418
+  },
+  {
+   "id": "pacitan",
+   "name": "Pacitan",
+   "area": "mataraman",
+   "adm4": "35.01.04.1001",
+   "lat": -8.2117,
+   "lon": 111.0798
+  },
+  {
+   "id": "ponorogo",
+   "name": "Ponorogo",
+   "area": "mataraman",
+   "adm4": "35.02.17.1001",
+   "lat": -7.8824,
+   "lon": 111.4521
+  },
+  {
+   "id": "trenggalek",
+   "name": "Trenggalek",
+   "area": "mataraman",
+   "adm4": "35.03.11.1002",
+   "lat": -8.0581,
+   "lon": 111.6965
+  },
+  {
+   "id": "tuban",
+   "name": "Tuban",
+   "area": "mataraman",
+   "adm4": "35.23.16.1003",
+   "lat": -6.8812,
+   "lon": 112.0242
+  },
+  {
+   "id": "tulungagung",
+   "name": "Tulungagung",
+   "area": "mataraman",
+   "adm4": "35.04.01.1001",
+   "lat": -8.0797,
+   "lon": 111.8755
+  },
+  {
+   "id": "banyuwangi",
+   "name": "Banyuwangi",
+   "area": "tapalkuda",
+   "adm4": "35.10.16.1001",
+   "lat": -8.253,
+   "lon": 114.3656
+  },
+  {
+   "id": "bondowoso",
+   "name": "Bondowoso",
+   "area": "tapalkuda",
+   "adm4": "35.11.11.1004",
+   "lat": -7.9287,
+   "lon": 113.8098
+  },
+  {
+   "id": "jember",
+   "name": "Jember",
+   "area": "tapalkuda",
+   "adm4": "35.09.19.1001",
+   "lat": -8.1932,
+   "lon": 113.6492
+  },
+  {
+   "id": "kab-pasuruan",
+   "name": "Kab. Pasuruan",
+   "area": "tapalkuda",
+   "adm4": "35.14.14.1001",
+   "lat": -7.611,
+   "lon": 112.7754
+  },
+  {
+   "id": "kab-probolinggo",
+   "name": "Kab. Probolinggo",
+   "area": "tapalkuda",
+   "adm4": "35.13.14.1003",
+   "lat": -7.7641,
+   "lon": 113.4041
+  },
+  {
+   "id": "kota-pasuruan",
+   "name": "Kota Pasuruan",
+   "area": "tapalkuda",
+   "adm4": "35.75.02.1001",
+   "lat": -7.666,
+   "lon": 112.889
+  },
+  {
+   "id": "kota-probolinggo",
+   "name": "Kota Probolinggo",
+   "area": "tapalkuda",
+   "adm4": "35.74.03.1001",
+   "lat": -7.7337,
+   "lon": 113.2166
+  },
+  {
+   "id": "lumajang",
+   "name": "Lumajang",
+   "area": "tapalkuda",
+   "adm4": "35.08.10.1003",
+   "lat": -8.1301,
+   "lon": 113.2124
+  },
+  {
+   "id": "situbondo",
+   "name": "Situbondo",
+   "area": "tapalkuda",
+   "adm4": "35.12.07.1002",
+   "lat": -7.7019,
+   "lon": 113.9908
+  }
+ ]
+}
