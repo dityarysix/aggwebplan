@@ -124,3 +124,10 @@ repository with only "Actions: Read and write". A successful call returns 204.
 Wrap-ups may be written from 07:55 / Friday 16:55 WIB. GitHub's own schedule (08:03 / 17:03 WIB)
 remains as a backup. If the alarms stop working, check the job history on cron-job.org (401 means
 the token was deleted or expired: create a new one and update the Authorization header).
+
+### Jelajah Jatim (tourism only)
+
+The tab collects tourism news: stories in Indonesian with words such as *wisata, wisatawan,
+pariwisata, destinasi, turis, liburan, pendaki* (see `jelajah` in `areas.json`). Place names alone
+do not count, and stories with accident, crime or disaster words (`exclude`) stay out of this tab.
+To hide a single story, add its link to `tautanDihapus` in `kontrol.json`.

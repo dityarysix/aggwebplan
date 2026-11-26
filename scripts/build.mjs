@@ -275,7 +275,9 @@ function areaMatchers(areas) {
       if (area.strict.length) parts.push(`\\b${PLACE_PREFIX}\\s+(?:${area.strict.map(escape).join('|')})\\b`);
       // For a local outlet of this area, the strict words are place names too ("Malang" in a Malang paper).
       const relaxed = new RegExp(`\\b(?:${[...area.words, ...area.strict].map(escape).join('|')})\\b`);
-      return { key, regex: new RegExp(parts.join('|')), relaxed };
+      // Optional words that keep a story out of this tab (case-insensitive), e.g. accidents at tourist spots.
+      const exclude = area.exclude?.length ? new RegExp(`\\b(?:${area.exclude.map(escape).join('|')})\\b`, 'i') : null;
+      return { key, regex: new RegExp(parts.join('|')), relaxed, exclude, lang: area.lang };
     });
 }
 
@@ -283,7 +285,8 @@ function tagAreas(articles, matchers) {
   for (const a of articles) {
     if (a.section !== 'jatim') continue;
     const text = a.title + ' ' + a.summary;
-    a.areas = matchers.filter((m) => m.regex.test(text) || (a.localArea === m.key && m.relaxed.test(text))).map((m) => m.key);
+    a.areas = matchers.filter((m) => (m.regex.test(text) || (a.localArea === m.key && m.relaxed.test(text)))
+      && !(m.exclude && m.exclude.test(text)) && (!m.lang || a.lang === m.lang)).map((m) => m.key);
     if (a.official && !a.areas.includes(a.homeArea)) a.areas.push(a.homeArea);
   }
 }
