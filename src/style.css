@@ -49,6 +49,7 @@ img { display: block; max-width: 100%; }
 .wordmark { margin: 0; font-weight: 700; font-size: clamp(2.1rem, 6vw, 3.6rem); line-height: 1; letter-spacing: -0.02em; }
 .wordmark a { text-decoration: none; }
 .wordmark span { color: var(--bata); font-weight: 400; font-style: italic; }
+.masthead__side { display: flex; flex-direction: column; align-items: flex-end; gap: .6rem; }
 .edition { margin: 0; display: grid; justify-items: end; gap: .1rem; font: 600 .95rem/1.3 var(--sans); }
 .edition__updated { font-weight: 400; font-size: .8rem; color: var(--redup); }
 
@@ -57,6 +58,7 @@ img { display: block; max-width: 100%; }
   border-bottom: 1px solid var(--batu);
 }
 .tabs {
+  flex: 1 1 auto; min-width: 0;  /* the row takes the full width and scrolls sideways on phones */
   display: flex; gap: clamp(1rem, 2.6vw, 1.9rem);
   overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch;
 }
@@ -157,7 +159,7 @@ img { display: block; max-width: 100%; }
   .masthead__top { flex-direction: column; align-items: flex-start; }
   .edition { justify-items: start; }
   .controls { flex-direction: column; align-items: stretch; gap: 0; margin: 0 calc(-1 * var(--gutter)); padding: 0 var(--gutter); }
-  .lang { order: -1; padding-top: .6rem; }
+  .masthead__side { align-items: flex-start; }
   .tabs { padding-right: var(--gutter); }
   .tabs a { font-size: .95rem; }
   .lead__story { grid-template-columns: minmax(0, 1fr); }
@@ -235,6 +237,51 @@ a.more { display: inline-block; text-decoration: none; }
 /* ---------- Footer links (Tentang Kami, Kontak, ...) ---------- */
 .footer__links { display: flex; flex-wrap: wrap; gap: .35rem 1.1rem; }
 .footer__links a { color: inherit; }
+
+/* ---------- Side panels: Jadwal Salat (left) and Cuaca (right) on wide screens ---------- */
+/* Wide screens: a column on each side of the centred page. Narrower: both panels are cards
+   under Sorotan pekan ini (#side-cards, inside the page). Each panel is one component. */
+.side { display: none; }
+.sidecards { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1.25rem; padding: clamp(2rem, 4vw, 3rem) 0; border-bottom: 1px solid var(--batu); }
+.sidecards:empty { display: none; }
+@media (min-width: 1500px) {
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr) var(--wide) minmax(0, 1fr); column-gap: 1.25rem; align-items: start; }
+  .layout > .page { grid-column: 2; min-width: 0; }
+  .side { display: block; position: sticky; top: 1.5rem; width: 100%; max-width: 16rem; }
+  .side--left { grid-column: 1; justify-self: end; }
+  .side--right { grid-column: 3; justify-self: start; }
+  .sidecards { display: none; }
+}
+@media (max-width: 640px) {
+  .sidecards { grid-template-columns: minmax(0, 1fr); }
+}
+.sidepanel { padding: 1.1rem 1.2rem 1.2rem; background: var(--kertas-tua); border-radius: 3px; }
+.sidepanel .rubric { margin-bottom: .75rem; }
+.sidepanel__date { margin: 0 0 .6rem; font: 600 .95rem/1.35 var(--sans); }
+.sidepanel__note { margin-top: .9rem; }
+.side__pick { display: grid; gap: .3rem; margin-bottom: .9rem; font: 600 .8rem/1.2 var(--sans); color: var(--redup); }
+.side__select {
+  width: 100%; padding: .45rem .5rem;
+  font: 400 .95rem/1.3 var(--sans); color: var(--tinta);
+  background: var(--kertas); border: 1px solid var(--batu); border-radius: 3px;
+}
+.prayers { list-style: none; margin: 0; padding: 0; font: 400 .95rem/1.3 var(--sans); }
+.prayers__item { display: flex; justify-content: space-between; gap: 1rem; padding: .32rem 0; border-bottom: 1px dotted var(--batu); }
+.prayers__item:last-child { border-bottom: 0; }
+.prayers__time { font-variant-numeric: tabular-nums; }
+.prayers__item.is-next { font-weight: 700; color: var(--bata-teks); }
+.weather__now { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .9rem; }  /* narrow sidebars (1500 px): the text moves under the temperature */
+.weather__temp { font: 700 2.8rem/1 var(--serif); letter-spacing: -0.02em; }
+.weather__desc { margin: 0 0 .25rem; font: 600 1rem/1.25 var(--sans); }
+.weather__next {
+  list-style: none; margin: 1rem 0 0; padding: .8rem 0 0; border-top: 1px solid var(--batu);
+  display: grid; gap: .4rem; font: 400 .9rem/1.3 var(--sans);
+}
+/* Time and temperature side by side; the condition wraps under them in a narrow panel. */
+.weather__next li { display: flex; flex-wrap: wrap; align-items: baseline; gap: .1rem .5rem; }
+.weather__next li > span:first-child { width: 3.2rem; }
+.weather__t { width: 2.6rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.weather__next li > span:last-child { flex: 1 1 5rem; min-width: 0; }
 
 /* ---------- Ringkasan Harian box (next to Catatan Sepekan) ---------- */
 .daily__card { padding: 1.25rem 1.4rem 1.4rem; background: var(--kertas-tua); border-radius: 3px; }

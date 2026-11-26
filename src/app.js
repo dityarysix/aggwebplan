@@ -5,7 +5,8 @@
   var data = JSON.parse(document.getElementById('news-data').textContent);
   // Tabs: 'utama' shows all East Java news, the area tabs show East Java news tagged with that
   // area (see areas.json), 'dunia' shows world news.
-  var SECTIONS = ['utama', 'surabaya', 'malang', 'madura', 'mataraman', 'tapalkuda', 'dunia'];
+  var SECTIONS = ['utama', 'jelajah', 'surabaya', 'malang', 'madura', 'mataraman', 'tapalkuda', 'dunia'];
+  var TOPIC = 'jelajah';  // a topic tab (Jelajah Jatim), not a place: never counts as an area for highlights
   var TZ = 'Asia/Jakarta';
   var EDITION_DAYS = 7;
   var HIGHLIGHTS = 3;
@@ -334,8 +335,9 @@
   }
 
   // Top story and highlights: recent stories with a photo, each from a different outlet.
-  // On Sorotan Utama the highlights also come from different area tabs, and if possible from
-  // an area other than the top story's, so the top of the page covers all of East Java.
+  // On Sorotan Utama the highlights also come from different geographic areas (not the topic
+  // tab Jelajah Jatim), and if possible from an area other than the top story's, so the top of
+  // the page covers all of East Java.
   function pickFeatured(articles, lead) {
     var recent = articles.filter(function (a) { return Date.now() - new Date(a.date) < 2 * 86400000 && a.image; });
     lead = lead || recent[0] || articles[0];
@@ -345,7 +347,7 @@
     usedSources[lead.source] = true;
     var leadAreas = lead.areas || [];
     var highlightAreas = [];
-    var overlaps = function (a, areas) { return (a.areas || []).some(function (k) { return areas.indexOf(k) >= 0; }); };
+    var overlaps = function (a, areas) { return (a.areas || []).some(function (k) { return k !== TOPIC && areas.indexOf(k) >= 0; }); };
     var take = function (accept) {
       recent.forEach(function (a) {
         if (picked.length > HIGHLIGHTS || picked.indexOf(a) >= 0 || usedSources[a.source] || !accept(a)) return;
@@ -355,7 +357,7 @@
       });
     };
     if (state.section === 'utama') {
-      var tagged = function (a) { return (a.areas || []).length > 0; };
+      var tagged = function (a) { return (a.areas || []).some(function (k) { return k !== TOPIC; }); };
       // 1: a new area, different from the top story's too; 2: a new area among the highlights.
       take(function (a) { return tagged(a) && !overlaps(a, highlightAreas.concat(leadAreas)); });
       take(function (a) { return tagged(a) && !overlaps(a, highlightAreas); });
@@ -382,6 +384,179 @@
     if (age > (d.digest === 'weekly' ? 24 : 12) * 3600000) return null;
     var bigNews = articles.some(function (a) { return a.also && a.date > d.date; });
     return bigNews ? null : d;
+  }
+
+  // ---------- Jadwal Salat and Cuaca panels ----------
+  // Both panels follow one city, chosen in either panel and remembered in this browser.
+  // Prayer times are calculated here (adhan); the weather comes from cuaca.json (BMKG, built hourly).
+  var KOTA = data.kota || [];
+  var AREA_GROUPS = [['surabaya', 'Surabaya Raya'], ['malang', 'Malang Raya'], ['madura', 'Madura'],
+    ['mataraman', 'Mataraman'], ['tapalkuda', 'Tapal Kuda']];
+  var PRAYERS = [['imsak', 'Imsak'], ['fajr', 'Subuh'], ['sunrise', 'Terbit'], ['dhuhr', 'Dzuhur'],
+    ['asr', 'Ashar'], ['maghrib', 'Maghrib'], ['isha', 'Isya']];
+  var NEXT_PRAYERS = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];  // the highlighted "next" prayer
+  var CUACA_MAX_GAP = 6 * 3600000;  // a forecast period further away than this is too old to show
+  var kotaId = (function () {
+    var saved = null;
+    try { saved = localStorage.getItem('js-kota'); } catch (err) { /* private mode: use the default */ }
+    return KOTA.some(function (k) { return k.id === saved; }) ? saved : 'surabaya';
+  })();
+  var cuacaData;  // undefined while loading, null if it failed, else {updated, cities}
+  var mounts = [];  // every panel on the page: {kind, body, select}
+
+  function kotaById(id) {
+    return KOTA.filter(function (k) { return k.id === id; })[0];
+  }
+
+  function setKota(id) {
+    kotaId = id;
+    try { localStorage.setItem('js-kota', id); } catch (err) { /* not remembered */ }
+    renderPanels();
+  }
+
+  // The city picker: the cities in the order of kota.json, grouped by area.
+  function kotaPicker() {
+    var label = el('label', 'side__pick', 'Pilih kota');
+    var select = el('select', 'side__select');
+    AREA_GROUPS.forEach(function (group) {
+      var optgroup = document.createElement('optgroup');
+      optgroup.label = group[1];
+      KOTA.filter(function (k) { return k.area === group[0]; }).forEach(function (k) {
+        var option = document.createElement('option');
+        option.value = k.id;
+        option.textContent = k.name;
+        optgroup.appendChild(option);
+      });
+      select.appendChild(optgroup);
+    });
+    select.addEventListener('change', function () { setKota(select.value); });
+    label.appendChild(select);
+    return { label: label, select: select };
+  }
+
+  // One panel. The same panel can sit in the side column (wide screens) or among the cards
+  // under Sorotan pekan ini (narrower screens); CSS shows the right place.
+  function mountPanel(host, kind) {
+    var panel = el('section', 'sidepanel');
+    panel.appendChild(el('h2', 'rubric', kind === 'jadwal' ? 'Jadwal Salat' : 'Cuaca'));
+    var picker = kotaPicker();
+    var body = el('div', 'sidepanel__body');
+    panel.appendChild(picker.label);
+    panel.appendChild(body);
+    host.appendChild(panel);
+    mounts.push({ kind: kind, body: body, select: picker.select });
+  }
+
+  // Prayer times for one day, Kemenag's method: Fajr 20 degrees, Isha 18 degrees, Asr Shafi,
+  // +2 minutes on each time (ihtiyat; -2 for Terbit, which ends Subuh), Imsak 10 minutes before Subuh. Times are for the calendar
+  // day in Jakarta; adhan reads the day from the Date's local fields, so it is built that way.
+  function prayerTimes(kota, now) {
+    var parts = dayKey(now).split('-');
+    var day = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), 12);
+    var params = adhan.CalculationMethod.Other();
+    params.fajrAngle = 20;
+    params.ishaAngle = 18;
+    params.madhab = adhan.Madhab.Shafi;
+    params.adjustments = { fajr: 2, sunrise: -2, dhuhr: 2, asr: 2, maghrib: 2, isha: 2 };  // Terbit ends Subuh time: 2 minutes earlier
+    var times = new adhan.PrayerTimes(new adhan.Coordinates(kota.lat, kota.lon), day, params);
+    return {
+      imsak: new Date(times.fajr.getTime() - 10 * 60000),
+      fajr: times.fajr, sunrise: times.sunrise, dhuhr: times.dhuhr,
+      asr: times.asr, maghrib: times.maghrib, isha: times.isha,
+    };
+  }
+
+  function hhmm(date) {
+    return new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hour: '2-digit', minute: '2-digit', hour12: false })
+      .format(date).replace(':', '.');
+  }
+
+  function jadwalContent() {
+    var box = el('div');
+    var kota = kotaById(kotaId);
+    if (!kota || typeof adhan === 'undefined') {
+      box.appendChild(el('p', 'meta', 'Jadwal salat belum tersedia.'));
+      return box;
+    }
+    var now = new Date();
+    var times = prayerTimes(kota, now);
+    var next = NEXT_PRAYERS.filter(function (key) { return times[key] > now; })[0] || 'fajr';
+    box.appendChild(el('p', 'sidepanel__date', fmt(now, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })));
+    var list = el('ul', 'prayers');
+    PRAYERS.forEach(function (p) {
+      var item = el('li', p[0] === next ? 'prayers__item is-next' : 'prayers__item');
+      item.appendChild(el('span', null, p[1]));
+      item.appendChild(el('span', 'prayers__time', hhmm(times[p[0]])));
+      list.appendChild(item);
+    });
+    box.appendChild(list);
+    box.appendChild(el('p', 'meta sidepanel__note', 'Perkiraan menurut metode Kemenag. Rujuk jadwal resmi masjid setempat.'));
+    return box;
+  }
+
+  function cuacaContent() {
+    var box = el('div');
+    var periods = cuacaData && cuacaData.cities && cuacaData.cities[kotaId];
+    var at = function (p) { return new Date(p.time.replace(' ', 'T') + '+07:00').getTime(); };  // BMKG gives Jakarta time
+    var now = Date.now();
+    var current = -1;
+    (periods || []).forEach(function (p, i) {
+      if (current < 0 || Math.abs(at(p) - now) < Math.abs(at(periods[current]) - now)) current = i;
+    });
+    if (cuacaData === undefined) {
+      box.appendChild(el('p', 'meta', 'Memuat data cuaca…'));
+    } else if (current < 0 || Math.abs(at(periods[current]) - now) > CUACA_MAX_GAP) {
+      box.appendChild(el('p', 'meta', 'Data cuaca belum tersedia.'));
+    } else {
+      var p = periods[current];
+      var head = el('div', 'weather__now');
+      head.appendChild(el('span', 'weather__temp', Math.round(p.t) + '°'));
+      var side = el('div');
+      side.appendChild(el('p', 'weather__desc', p.desc));
+      side.appendChild(el('p', 'meta', 'Pukul ' + p.time.slice(11, 16).replace(':', '.') + ' · Kelembapan ' + p.hu + '%'));
+      head.appendChild(side);
+      box.appendChild(head);
+      var next = periods.slice(current + 1, current + 5);
+      if (next.length) {
+        var list = el('ul', 'weather__next');
+        next.forEach(function (n) {
+          var item = el('li');
+          item.appendChild(el('span', null, n.time.slice(11, 16).replace(':', '.')));
+          item.appendChild(el('span', 'weather__t', Math.round(n.t) + '°'));
+          item.appendChild(el('span', null, n.desc));
+          list.appendChild(item);
+        });
+        box.appendChild(list);
+      }
+    }
+    var source = el('p', 'meta sidepanel__note', 'Sumber: ');
+    var link = el('a', null, 'BMKG');
+    link.href = 'https://www.bmkg.go.id';
+    link.target = '_blank';
+    link.rel = 'noopener';
+    source.appendChild(link);
+    box.appendChild(source);
+    return box;
+  }
+
+  function renderPanels() {
+    mounts.forEach(function (m) {
+      m.body.replaceChildren(m.kind === 'jadwal' ? jadwalContent() : cuacaContent());
+      m.select.value = kotaId;
+    });
+  }
+
+  function loadCuaca() {
+    fetch('cuaca.json').then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    }).then(function (json) {
+      cuacaData = json;
+      renderPanels();
+    }).catch(function () {
+      cuacaData = null;
+      renderPanels();
+    });
   }
 
   function render() {
@@ -420,6 +595,7 @@
     renderHighlights(featured.slice(1));
     renderColumn();
     renderDaily();
+    renderPanels();
     renderDays(listed.filter(function (a) { return featured.indexOf(a) < 0; }));
     if (!articles.length) renderEmpty();
   }
@@ -479,6 +655,14 @@
     render();
     window.scrollTo({ top: 0 });
   });
+
+  if (KOTA.length) {
+    mountPanel(document.getElementById('side-jadwal'), 'jadwal');
+    mountPanel(document.getElementById('side-cuaca'), 'cuaca');
+    mountPanel(document.getElementById('side-cards'), 'jadwal');
+    mountPanel(document.getElementById('side-cards'), 'cuaca');
+    loadCuaca();
+  }
 
   render();
   if (state.section !== 'utama' || state.lang !== 'all') loadFull();  // opened on an area tab

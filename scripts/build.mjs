@@ -321,12 +321,16 @@ async function readControl() {
   }
 }
 
+// Topics (Jelajah Jatim) are not places: "wisata" in a Malang paper does not make a story about Malang.
+const TOPIC_AREAS = ['jelajah'];
+
 function aboutEastJava(a, matchers) {
   const text = a.title + ' ' + a.summary;
+  const places = matchers.filter((m) => !TOPIC_AREAS.includes(m.key));
   if (PROMOTIONAL.test(a.title) || isBlocked(a)) return false;
-  if (a.localArea) return matchers.some((m) => m.regex.test(text) || (a.localArea === m.key && m.relaxed.test(text)));
+  if (a.localArea) return places.some((m) => m.regex.test(text) || (a.localArea === m.key && m.relaxed.test(text)));
   if (!a.official) return true;
-  return text.toLowerCase().includes(a.place.toLowerCase()) || matchers.some((m) => m.regex.test(text));
+  return text.toLowerCase().includes(a.place.toLowerCase()) || places.some((m) => m.regex.test(text));
 }
 
 const jakartaDay = (iso) => new Date(new Date(iso).getTime() + 7 * 3600000).toISOString().slice(0, 10);
@@ -498,7 +502,7 @@ function digestCandidates(archive, hours, limit) {
   });
 }
 
-const AREA_NAMES = { surabaya: 'Surabaya Raya', malang: 'Malang Raya', madura: 'Madura', mataraman: 'Mataraman', tapalkuda: 'Tapal Kuda' };
+const AREA_NAMES = { surabaya: 'Surabaya Raya', malang: 'Malang Raya', madura: 'Madura', mataraman: 'Mataraman', tapalkuda: 'Tapal Kuda', jelajah: 'Jelajah Jatim' };
 
 async function writeDigests(archive, digests) {
   const due = dueDigests(digests).filter((d) => (d.kind === 'daily' ? control.ringkasanHarian : control.ringkasanSepekan) !== false);
@@ -615,7 +619,7 @@ function renderReport({ sources, articles, archive, withPages, digests, columns,
     const today = mine.filter((a) => new Date(a.date) >= dayAgo).length;
     return `<tr class="${status.ok ? '' : 'report__fail'}"><td>${escapeHtml(name)}</td><td>${status.ok ? 'OK' : `GAGAL: ${escapeHtml(status.error)}`}</td><td>${today}</td><td>${mine.length}</td></tr>`;
   });
-  const areaRows = ['surabaya', 'malang', 'madura', 'mataraman', 'tapalkuda'].map((k) => {
+  const areaRows = ['surabaya', 'malang', 'madura', 'mataraman', 'tapalkuda', 'jelajah'].map((k) => {
     const inArea = articles.filter((a) => a.areas?.includes(k));
     return `<tr><td>${AREA_NAMES[k]}</td><td>${inArea.filter((a) => new Date(a.date) >= dayAgo).length}</td><td>${inArea.length}</td></tr>`;
   });
@@ -715,6 +719,55 @@ async function readSaved(file, name) {
   }
 }
 
+// BMKG's forecast for each city in kota.json (3 days in 3-hour steps). BMKG updates it only a few
+// times a day, so the saved copy is used for 3 hours. A city that fails keeps its previous
+// forecast; if every city fails the saved file is kept. The build never fails because of this.
+const cuacaFile = path.join(root, 'data', 'cuaca.json');
+const CUACA_MAX_AGE = 3 * 3600000;
+const CUACA_PERIODS = 8;  // 3-hour periods kept per city: 24 hours
+
+async function updateCuaca(cities) {
+  let saved = { updated: null, cities: {} };
+  try {
+    saved = { ...saved, ...(await readSaved(cuacaFile, 'cuaca.json')) };
+    if (saved.updated && Date.now() - new Date(saved.updated) < CUACA_MAX_AGE) {
+      console.log(`  Cuaca: saved forecast is recent (${saved.updated})`);
+      return saved;
+    }
+    const fresh = {};
+    let failed = 0;
+    for (const [i, city] of cities.entries()) {
+      if (i) await new Promise((resolve) => setTimeout(resolve, 400));  // gentle with BMKG
+      try {
+        const body = JSON.parse(await fetchText(`https://api.bmkg.go.id/publik/prakiraan-cuaca?adm4=${encodeURIComponent(city.adm4)}`));
+        const periods = body.data[0].cuaca.flat()
+          .filter((p) => new Date(p.datetime).getTime() >= Date.now() - 3 * 3600000)  // not periods that have ended
+          .slice(0, CUACA_PERIODS)
+          .map((p) => ({ time: p.local_datetime, t: p.t, hu: p.hu, desc: p.weather_desc, desc_en: p.weather_desc_en, ws: p.ws, wd: p.wd }));
+        if (periods.length === 0) throw new Error('no forecast periods');
+        fresh[city.id] = periods;
+      } catch (err) {
+        failed++;
+        const kept = saved.cities[city.id];
+        console.log(`  Cuaca ${city.name}: ${err.cause?.message || err.message}${kept ? ' (kept the previous forecast)' : ''}`);
+        if (kept) fresh[city.id] = kept;
+      }
+    }
+    if (failed === cities.length) {
+      console.log('  Cuaca: no city could be read from BMKG; keeping the saved file');
+      return saved;
+    }
+    const result = { updated: new Date().toISOString(), cities: fresh };
+    await mkdir(path.dirname(cuacaFile), { recursive: true });
+    await writeFile(cuacaFile, JSON.stringify(result) + '\n');
+    console.log(`  Cuaca: ${Object.keys(fresh).length} of ${cities.length} cities (BMKG)`);
+    return result;
+  } catch (err) {
+    console.log(`  Cuaca not updated: ${err.message}`);
+    return saved;
+  }
+}
+
 async function readArchive() {
   try {
     const saved = JSON.parse(await readFile(archiveFile, 'utf8'));
@@ -772,8 +825,13 @@ async function main() {
     .map((a) => ({ ...a, summary: tidySummary(a.summary), also: undefined, body: undefined, homeArea: undefined, place: undefined, site: siteName(a.link) }));
   const articles = groupSameStories(edition);
 
+  const kota = JSON.parse(await readFile(path.join(root, 'kota.json'), 'utf8')).cities;
+  const cuaca = await updateCuaca(kota);
+
   const data = {
     updated: new Date().toISOString(),
+    // The cities of the Jadwal Salat and Cuaca panels (kota.json, without the BMKG code).
+    kota: kota.map(({ id, name, area, lat, lon }) => ({ id, name, area, lat, lon })),
     sources: [...new Set(sources.filter((s) => !s.official).map((s) => s.name))],
     official: [...new Set(sources.filter((s) => s.official).map((s) => s.name))],
     // Only what the page shows: the full article text lives on its own page, and build-only
@@ -797,6 +855,8 @@ async function main() {
   ];
   for (const [from, to] of fonts) await copyFile(path.join(root, 'node_modules', from), path.join(dist, 'fonts', to));
   for (const file of ['style.css', 'app.js', 'favicon.svg']) await copyFile(path.join(root, 'src', file), path.join(dist, file));
+  // Prayer times for the Jadwal Salat panel are calculated in the browser (adhan, MIT licence).
+  await copyFile(path.join(root, 'node_modules', 'adhan', 'lib', 'bundles', 'adhan.umd.min.js'), path.join(dist, 'adhan.umd.min.js'));
   await writeFile(path.join(dist, 'CNAME'), DOMAIN + '\n'); // tells GitHub Pages which domain to answer
 
   // Browsers keep style.css and app.js for a while. A version number that changes with their
@@ -888,6 +948,9 @@ async function main() {
   await mkdir(path.join(dist, 'data'), { recursive: true });
   await copyFile(pagesFile, path.join(dist, 'data', 'pages.json'));
   await copyFile(digestsFile, path.join(dist, 'data', 'digests.json'));
+  // The weather for the Cuaca panel: a small file the page loads once, and its backup copy.
+  await writeFile(path.join(dist, 'cuaca.json'), JSON.stringify(cuaca) + '\n');
+  await writeFile(path.join(dist, 'data', 'cuaca.json'), JSON.stringify(cuaca) + '\n');
 
   // Speed: the front page carries only the newest stories (enough for the top of every tab and
   // today's list). The whole week is in edisi.json, which the page loads when the reader scrolls
@@ -895,7 +958,7 @@ async function main() {
   const allArticles = data.articles;
   const newestFirst = [...allArticles].sort((a, b) => b.date.localeCompare(a.date));
   const first = new Set(newestFirst.slice(0, 120));
-  for (const key of ['surabaya', 'malang', 'madura', 'mataraman', 'tapalkuda']) {
+  for (const key of ['surabaya', 'malang', 'madura', 'mataraman', 'tapalkuda', 'jelajah']) {
     newestFirst.filter((a) => a.areas?.includes(key)).slice(0, 12).forEach((a) => first.add(a));
   }
   newestFirst.filter((a) => a.section === 'dunia').slice(0, 12).forEach((a) => first.add(a));
@@ -915,7 +978,7 @@ async function main() {
   console.log(`Done: ${articles.length} articles this edition; archive holds ${archive.length} → dist/index.html`);
   console.log(`  Official releases ${articles.filter((a) => a.official).length}, with their own article page ${withPages.length}`);
   console.log(`  Stories reported by two outlets ${articles.filter((a) => a.also).length}`);
-  console.log(`  Jawa Timur ${count('jatim')} (Surabaya Raya ${inArea('surabaya')}, Malang Raya ${inArea('malang')}, Madura ${inArea('madura')}, Mataraman ${inArea('mataraman')}, Tapal Kuda ${inArea('tapalkuda')}), Dunia ${count('dunia')}`);
+  console.log(`  Jawa Timur ${count('jatim')} (Surabaya Raya ${inArea('surabaya')}, Malang Raya ${inArea('malang')}, Madura ${inArea('madura')}, Mataraman ${inArea('mataraman')}, Tapal Kuda ${inArea('tapalkuda')}, Jelajah Jatim ${inArea('jelajah')}), Dunia ${count('dunia')}`);
 }
 
 main().catch((err) => { console.error(err.message); process.exit(1); });

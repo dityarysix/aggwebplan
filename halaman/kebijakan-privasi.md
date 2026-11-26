@@ -4,13 +4,14 @@ alamat: kebijakan-privasi
 deskripsi: Kebijakan privasi Jawa Timur Sepekan: data apa yang dikumpulkan, penggunaan cookie, dan iklan Google AdSense.
 ---
 
-Kebijakan ini menjelaskan data apa yang dikumpulkan saat Anda mengunjungi jatimsepekan.com dan bagaimana data tersebut digunakan. Terakhir diperbarui: 23 November 2026.
+Kebijakan ini menjelaskan data apa yang dikumpulkan saat Anda mengunjungi jatimsepekan.com dan bagaimana data tersebut digunakan. Terakhir diperbarui: 26 November 2026.
 
 ## Data yang kami kumpulkan
 
 Jawa Timur Sepekan tidak meminta Anda membuat akun dan tidak meminta data pribadi seperti nama, alamat, atau nomor telepon.
 
 - **Preferensi bahasa.** Pilihan bahasa berita (Semua, Indonesia, atau English) disimpan di peramban Anda sendiri (*local storage*) agar tetap berlaku saat Anda kembali. Data ini tidak dikirim kepada kami.
+- **Kota pilihan.** Kota yang Anda pilih untuk panel Jadwal Salat dan Cuaca juga disimpan di *local storage* peramban Anda, dan tidak dikirim kepada kami. Jadwal salat dihitung di peramban Anda. Data cuaca berasal dari Badan Meteorologi, Klimatologi, dan Geofisika (BMKG); kami mengambilnya dari BMKG saat situs diperbarui, sehingga peramban Anda hanya memuat berkas dari situs ini.
 - **Data teknis server.** Situs ini di-*hosting* oleh GitHub Pages. Seperti layanan *hosting* pada umumnya, GitHub dapat mencatat data teknis seperti alamat IP untuk keamanan dan pemeliharaan layanan, sesuai [Pernyataan Privasi GitHub](https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement).
 - **Gambar dari situs sumber.** Foto berita dimuat langsung dari situs media sumber. Saat gambar dimuat, situs tersebut dapat menerima data teknis seperti alamat IP Anda.
 - **Surel.** Jika Anda mengirim surel kepada kami, kami menyimpan surel tersebut hanya untuk membalas dan menindaklanjuti pesan Anda.

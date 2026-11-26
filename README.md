@@ -40,7 +40,23 @@ and links every headline to the original article. Each edition covers the last 7
   `data/pages.json` and `data/digests.json`; a copy is published under `/data/` and is used
   to restore them if GitHub's cache is ever cleared.
 - `areas.json` lists the place names for each area tab (Surabaya Raya, Malang Raya,
-  Madura, Mataraman, Tapal Kuda).
+  Madura, Mataraman, Tapal Kuda). The **Jelajah Jatim** tab (travel and places to visit)
+  is a topic, not a place: its words (wisata, pantai, Bromo, and so on) only pick the
+  stories for that tab. Topic stories do not count as East Java news for the highlights
+  or the East Java filter.
+- **Jadwal Salat and Cuaca panels:** the side columns on wide screens (1500 px and more),
+  and cards under Sorotan pekan ini on narrower screens. One city, chosen in either panel,
+  is remembered in the browser (`js-kota`). The city list is `kota.json` (38 cities,
+  each with its BMKG village code `adm4` for the weather and its coordinates for prayer
+  times). Prayer times are calculated in the browser with the `adhan` library (MIT), using
+  the Kemenag method: Fajr 20°, Isha 18°, Asr Shafi, +2 minutes on each time, Imsak 10
+  minutes before Subuh, Jakarta time.
+- **Weather (BMKG):** `scripts/build.mjs` reads the 3-day forecast of each city from
+  `https://api.bmkg.go.id/publik/prakiraan-cuaca` (one request per city, 400 ms apart) and
+  keeps the next 8 periods (24 hours) in `data/cuaca.json`, published as `cuaca.json`. The
+  forecast is refreshed when the saved copy is older than 3 hours, because BMKG updates it
+  only a few times a day. A city that fails keeps its previous forecast, and a failure never
+  stops the build. The panel shows "Sumber: BMKG" as BMKG requires.
 - Local outlets have `"localArea"` in `sources.json`: only their stories about an East Java
   area are kept. Busy outlets can have `"maxPerDay"` (the Radar papers: 12 a day).
 - `scripts/build.mjs` downloads the feeds, adds new articles to the weekly archive

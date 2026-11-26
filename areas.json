@@ -1,5 +1,5 @@
 {
-  "_help": "Which East Java stories go into each area tab. 'words' match anywhere in the headline or summary (capital letters must match). 'strict' words only count after Kota, Kabupaten, Pemkot, Polres, Bupati and similar, because they are also ordinary words (batu = stone).",
+  "_help": "Which East Java stories go into each area tab. 'words' match anywhere in the headline or summary (capital letters must match). 'strict' words only count after Kota, Kabupaten, Pemkot, Polres, Bupati and similar, because they are also ordinary words (batu = stone). 'jelajah' (Jelajah Jatim) is a topic, not a place: it is not counted when a story is checked for East Java or for the geographic highlights.",
   "surabaya": {
     "words": [
       "Surabaya",
@@ -74,6 +74,43 @@
       "Ijen",
       "Baluran",
       "Ketapang"
+    ],
+    "strict": []
+  },
+  "jelajah": {
+    "words": [
+      "Wisata",
+      "wisata",
+      "Destinasi",
+      "destinasi",
+      "Pantai",
+      "pantai",
+      "Coban",
+      "coban",
+      "Air Terjun",
+      "air terjun",
+      "Pendakian",
+      "pendakian",
+      "Kuliner",
+      "kuliner",
+      "Desa Wisata",
+      "desa wisata",
+      "Festival",
+      "festival",
+      "Museum",
+      "museum",
+      "Candi",
+      "candi",
+      "Bromo",
+      "Ijen",
+      "Baluran",
+      "Kawah",
+      "kawah",
+      "Glamping",
+      "glamping",
+      "Camping",
+      "camping",
+      "Taman Nasional"
     ],
     "strict": []
   }

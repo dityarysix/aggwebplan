@@ -21,15 +21,23 @@
   <header class="masthead">
     <div class="masthead__top">
       <h1 class="wordmark"><a href="./">Jawa Timur <span>Sepekan</span></a></h1>
-      <p class="edition">
-        <span id="edition"></span>
-        <span class="edition__updated" id="updated"></span>
-        <a class="edition__archive" href="arsip/" data-t="archive">Arsip ringkasan</a>
-      </p>
+      <div class="masthead__side">
+        <p class="edition">
+          <span id="edition"></span>
+          <span class="edition__updated" id="updated"></span>
+          <a class="edition__archive" href="arsip/" data-t="archive">Arsip ringkasan</a>
+        </p>
+        <div class="lang" role="group" aria-label="Bahasa berita" id="lang">
+          <button type="button" data-lang="all" data-t="all">Semua</button>
+          <button type="button" data-lang="id">Indonesia</button>
+          <button type="button" data-lang="en">English</button>
+        </div>
+      </div>
     </div>
     <nav class="controls" aria-label="Pilih rubrik">
       <div class="tabs" role="tablist" id="tabs">
         <a role="tab" href="#utama" data-section="utama" data-t="utama">Sorotan Utama</a>
+        <a role="tab" href="#jelajah" data-section="jelajah">Jelajah Jatim</a>
         <a role="tab" href="#surabaya" data-section="surabaya">Surabaya Raya</a>
         <a role="tab" href="#malang" data-section="malang">Malang Raya</a>
         <a role="tab" href="#madura" data-section="madura">Madura</a>
@@ -37,43 +45,46 @@
         <a role="tab" href="#tapalkuda" data-section="tapalkuda">Tapal Kuda</a>
         <a role="tab" href="#dunia" data-section="dunia" data-t="dunia">Dunia</a>
       </div>
-      <div class="lang" role="group" aria-label="Bahasa berita" id="lang">
-        <button type="button" data-lang="all" data-t="all">Semua</button>
-        <button type="button" data-lang="id">Indonesia</button>
-        <button type="button" data-lang="en">English</button>
-      </div>
     </nav>
   </header>
 
-  <main id="berita" class="page" tabindex="-1">
-    <noscript><p class="empty">Aktifkan JavaScript untuk melihat berita. / Turn on JavaScript to see the news.</p></noscript>
+  <div class="layout">
+    <aside class="side side--left" id="side-jadwal" aria-label="Jadwal Salat"></aside>
 
-    <section class="lead" id="lead" aria-labelledby="lead-label">
-      <h2 class="rubric" id="lead-label" data-t="leadLabel">Laporan utama</h2>
-      <article class="lead__story" id="lead-story"></article>
-    </section>
+    <main id="berita" class="page" tabindex="-1">
+      <noscript><p class="empty">Aktifkan JavaScript untuk melihat berita. / Turn on JavaScript to see the news.</p></noscript>
 
-    <section class="highlights" id="highlights" aria-labelledby="highlights-label">
-      <h2 class="rubric" id="highlights-label" data-t="highlightsLabel">Sorotan pekan ini</h2>
-      <div class="highlights__grid" id="highlights-grid"></div>
-    </section>
-
-    <div class="picks" id="picks">
-      <section class="column" id="column" aria-labelledby="column-label" hidden>
-        <h2 class="rubric" id="column-label">Catatan Sepekan</h2>
-        <article class="column__card" id="column-card"></article>
+      <section class="lead" id="lead" aria-labelledby="lead-label">
+        <h2 class="rubric" id="lead-label" data-t="leadLabel">Laporan utama</h2>
+        <article class="lead__story" id="lead-story"></article>
       </section>
-      <section class="daily" id="daily" aria-labelledby="daily-label" hidden>
-        <h2 class="rubric" id="daily-label">Ringkasan Harian</h2>
-        <article class="daily__card" id="daily-card"></article>
-      </section>
-    </div>
 
-    <section class="week" aria-labelledby="week-label">
-      <h2 class="rubric" id="week-label" data-t="weekLabel">Sepanjang pekan</h2>
-      <div id="days"></div>
-    </section>
-  </main>
+      <section class="highlights" id="highlights" aria-labelledby="highlights-label">
+        <h2 class="rubric" id="highlights-label" data-t="highlightsLabel">Sorotan pekan ini</h2>
+        <div class="highlights__grid" id="highlights-grid"></div>
+      </section>
+
+      <div class="sidecards" id="side-cards"></div>
+
+      <div class="picks" id="picks">
+        <section class="column" id="column" aria-labelledby="column-label" hidden>
+          <h2 class="rubric" id="column-label">Catatan Sepekan</h2>
+          <article class="column__card" id="column-card"></article>
+        </section>
+        <section class="daily" id="daily" aria-labelledby="daily-label" hidden>
+          <h2 class="rubric" id="daily-label">Ringkasan Harian</h2>
+          <article class="daily__card" id="daily-card"></article>
+        </section>
+      </div>
+
+      <section class="week" aria-labelledby="week-label">
+        <h2 class="rubric" id="week-label" data-t="weekLabel">Sepanjang pekan</h2>
+        <div id="days"></div>
+      </section>
+    </main>
+
+    <aside class="side side--right" id="side-cuaca" aria-label="Cuaca"></aside>
+  </div>
 
   <footer class="footer">
     <p class="footer__name">Jawa Timur <span>Sepekan</span></p>
@@ -84,6 +95,7 @@
   </footer>
 
   <script id="news-data" type="application/json">__NEWS_DATA__</script>
+  <script src="adhan.umd.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
