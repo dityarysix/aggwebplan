@@ -225,34 +225,33 @@
 
   // "Ringkasan Harian" box next to the column: the latest daily wrap-up, the latest weekly one,
   // and the archive (Sorotan Utama only, in Indonesian).
-  function renderDaily() {
-    var section = document.getElementById('daily');
-    var card = document.getElementById('daily-card');
-    var daily = DIGESTS.filter(function (d) { return d.digest === 'daily'; })[0];
-    var weekly = DIGESTS.filter(function (d) { return d.digest === 'weekly'; })[0];
-    section.hidden = !daily || state.section !== 'utama' || state.lang === 'en';
+  function renderDigestBox(kind, sectionId, cardId) {
+    var section = document.getElementById(sectionId);
+    var card = document.getElementById(cardId);
+    var d = DIGESTS.filter(function (x) { return x.digest === kind; })[0];
+    section.hidden = !d || state.section !== 'utama' || state.lang === 'en';
     card.replaceChildren();
     if (section.hidden) return;
-    card.appendChild(el('p', 'meta', fmt(new Date(daily.date), { weekday: 'long', day: 'numeric', month: 'long' })));
+    card.appendChild(el('p', 'meta', fmt(new Date(d.date), { weekday: 'long', day: 'numeric', month: 'long' })));
     var h = el('h3', 'title');
-    var a = el('a', null, daily.title);
-    a.href = daily.page;
+    var a = el('a', null, d.title);
+    a.href = d.page;
     h.appendChild(a);
     card.appendChild(h);
-    card.appendChild(el('p', 'para', daily.summary.length > 200 ? daily.summary.slice(0, daily.summary.lastIndexOf(' ', 200)) + '…' : daily.summary));
+    card.appendChild(el('p', 'para', d.summary.length > 200 ? d.summary.slice(0, d.summary.lastIndexOf(' ', 200)) + '…' : d.summary));
     var more = el('a', 'more', 'Baca ringkasan');
-    more.href = daily.page;
+    more.href = d.page;
     card.appendChild(more);
     var all = el('a', 'column__all', 'Semua ringkasan');
     all.href = 'arsip/';
     card.appendChild(all);
-    if (weekly) {
-      var line = el('p', 'daily__weekly', 'Ringkasan sepekan terakhir: ');
-      var w = el('a', null, weekly.title);
-      w.href = weekly.page;
-      line.appendChild(w);
-      card.appendChild(line);
-    }
+  }
+
+  // "Ringkasan Sepekan" and "Ringkasan Harian" boxes next to the column (Sorotan Utama only, in
+  // Indonesian): the latest weekly and the latest daily wrap-up, each with the archive link.
+  function renderDigestBoxes() {
+    renderDigestBox('weekly', 'weekly', 'weekly-card');
+    renderDigestBox('daily', 'daily', 'daily-card');
   }
 
   function renderHighlights(articles) {
@@ -588,13 +587,13 @@
     // On Sorotan Utama, the wrap-ups join the news, and the newest one can take the top spot.
     if (state.section === 'utama' && state.lang !== 'en' && DIGESTS.length) {
       lead = leadDigest(articles);
-      listed = articles.concat(DIGESTS).sort(function (a, b) { return a.date < b.date ? 1 : -1; });
+      listed = articles.concat(DIGESTS.filter(function (d) { return Date.now() - new Date(d.date) < 7 * 86400000; })).sort(function (a, b) { return a.date < b.date ? 1 : -1; });
     }
     var featured = stableFeatured(pickFeatured(articles, lead), articles);
     renderLead(featured[0]);
     renderHighlights(featured.slice(1));
     renderColumn();
-    renderDaily();
+    renderDigestBoxes();
     renderPanels();
     renderDays(listed.filter(function (a) { return featured.indexOf(a) < 0; }));
     if (!articles.length) renderEmpty();

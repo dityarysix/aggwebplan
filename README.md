@@ -131,3 +131,10 @@ The tab collects tourism news: stories in Indonesian with words such as *wisata,
 pariwisata, destinasi, turis, liburan, pendaki* (see `jelajah` in `areas.json`). Place names alone
 do not count, and stories with accident, crime or disaster words (`exclude`) stay out of this tab.
 To hide a single story, add its link to `tautanDihapus` in `kontrol.json`.
+
+### Front-page row: Catatan Sepekan, Ringkasan Sepekan, Ringkasan Harian
+
+Three equal columns on Sorotan Utama (stacked on tablets and phones): the editor's latest column,
+the latest weekly wrap-up and the latest daily wrap-up, each with a link to the archive. The
+latest weekly and daily wrap-up always stay in the page data, even if older than a week, so a
+skipped run never leaves a box empty.

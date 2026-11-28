@@ -841,7 +841,9 @@ async function main() {
     // fields stay out.
     articles: articles.map(({ story, body, clockFixed, localArea, homeArea, place, ...rest }) => rest),
     // Wrap-ups of this edition, for the front page (newest first).
-    digests: digests.filter((d) => new Date(d.date).getTime() >= editionStart).reverse()
+    // Wrap-ups of this edition, plus the latest daily and weekly one whatever their age (the
+    // front-page boxes should never go empty if a run was skipped).
+    digests: digests.filter((d) => new Date(d.date).getTime() >= editionStart || [...digests].reverse().find((x) => x.kind === d.kind) === d).reverse()
       .map((d) => ({ kind: d.kind, title: d.title, date: d.date, page: d.page, image: d.image, summary: shorten(d.paragraphs[0].text, 260) })),
   };
 

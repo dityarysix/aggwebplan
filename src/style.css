@@ -206,15 +206,14 @@ a.more { display: inline-block; text-decoration: none; }
 
 /* ---------- Catatan Sepekan (the editor's own column) ---------- */
 .picks {
-  display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: clamp(1.5rem, 4vw, 3rem); align-items: start;
+  display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: clamp(1.25rem, 3vw, 2.5rem); align-items: start;
   padding: clamp(2rem, 4vw, 3rem) 0; border-bottom: 1px solid var(--batu);
 }
 .picks:not(:has(> section:not([hidden]))) { display: none; }
-.picks > section:only-child, .picks > section[hidden] + section, .picks > section:first-child:has(+ section[hidden]) { grid-column: 1 / -1; }
 .column { min-width: 0; }
-.column__card { max-width: 44rem; padding-left: 1.25rem; border-left: 3px solid var(--bata); }
-.column__card .title { margin: 0 0 .4rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1.15; font-weight: 700; font-style: italic; }
-.column__card .para { font-size: 1.1rem; line-height: 1.65; margin-bottom: 1rem; }
+.column__card { padding-left: 1.1rem; border-left: 3px solid var(--bata); }
+.column__card .title { margin: 0 0 .4rem; font-size: clamp(1.4rem, 2.2vw, 1.7rem); line-height: 1.15; font-weight: 700; font-style: italic; }
+.column__card .para { font-size: 1.02rem; line-height: 1.6; margin-bottom: 1rem; }
 .column__card .more { margin-right: 1rem; }
 .column__all { font: 600 .85rem/1 var(--sans); color: var(--bata-teks); }
 .story__body h2 { margin: 2rem 0 .75rem; font-size: 1.4rem; line-height: 1.25; }
@@ -284,13 +283,12 @@ a.more { display: inline-block; text-decoration: none; }
 .weather__next li > span:last-child { flex: 1 1 5rem; min-width: 0; }
 
 /* ---------- Ringkasan Harian box (next to Catatan Sepekan) ---------- */
-.daily__card { padding: 1.25rem 1.4rem 1.4rem; background: var(--kertas-tua); border-radius: 3px; }
-.daily__card .meta { margin-bottom: .35rem; }
-.daily__card .title { margin: 0 0 .5rem; font-size: 1.35rem; line-height: 1.2; font-weight: 700; }
-.daily__card .para { font-size: 1rem; line-height: 1.6; margin: 0 0 1rem; }
-.daily__card .more { margin-right: 1rem; }
-.daily__weekly { margin: 1.1rem 0 0; padding-top: .9rem; border-top: 1px solid var(--batu); font: 400 .88rem/1.45 var(--sans); color: var(--redup); }
-.daily__weekly a { color: var(--tinta); font-weight: 600; }
-@media (max-width: 860px) {
-  .picks { grid-template-columns: minmax(0, 1fr); }
+.digest__card { padding: 1.25rem 1.4rem 1.4rem; background: var(--kertas-tua); border-radius: 3px; }
+.digest__card .meta { margin-bottom: .35rem; }
+.digest__card .title { margin: 0 0 .5rem; font-size: 1.35rem; line-height: 1.2; font-weight: 700; }
+.digest__card .para { font-size: 1rem; line-height: 1.6; margin: 0 0 1rem; }
+.digest__card .more { margin-right: 1rem; }
+@media (max-width: 960px) {
+  .picks { grid-auto-flow: row; grid-auto-columns: auto; grid-template-columns: minmax(0, 1fr); }
+  .column__card .title { font-size: 1.6rem; }
 }
