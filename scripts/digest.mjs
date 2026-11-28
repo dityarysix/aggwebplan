@@ -62,8 +62,9 @@ ringkasannya; penulis lain akan menulisnya dari pilihanmu.
 
 Cara memilih:
 ${SELECTION}
-- Urutkan dari yang terpenting. Untuk setiap berita, tulis satu kalimat pendek tentang sudut yang perlu
-  ditekankan agar pembaca memahami mengapa berita itu penting.
+- Urutkan dari yang terpenting. Untuk setiap berita, isi "sudut" dengan satu kalimat pendek (paling banyak
+  20 kata) yang menyebut fakta paling penting dari berita itu saja. Jangan menulis penilaian, dugaan,
+  kesimpulan, atau fakta dari berita lain; sudut tidak boleh memuat apa pun yang tidak ada di berita itu.
 - Pakai nomor berita persis seperti di daftar.`;
 
 // Haiku's part: write from the stories that were picked.
@@ -72,7 +73,11 @@ Tugasmu: menulis ${kind.name} dari beberapa berita yang SUDAH DIPILIH redaksi. B
 terpenting, masing-masing dengan sudut yang disarankan. Gunakan semuanya; jangan menambah berita lain.
 
 Cara menulis:
-${WRITING(kind)}`;
+${WRITING(kind)}
+- Sudut yang disarankan hanyalah petunjuk fokus. Tulis hanya fakta yang ada di teks berita yang bersangkutan.
+  Jangan menyalin penilaian atau kesimpulan dari sudut, jangan menulis kalimat seperti "hal ini menunjukkan"
+  atau "dipandang sebagai", dan jangan memasukkan fakta dari berita lain ke dalam paragraf sebuah berita.
+- Kalau tidak ada fakta penutup yang konkret, hilangkan paragraf penutup; jangan menulis kesimpulan umum.`;
 
 export const SCHEMA = {
   type: 'object',

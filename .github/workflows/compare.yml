@@ -5,8 +5,6 @@ name: Bandingkan model ringkasan
 
 on:
   workflow_dispatch:
-  push:
-    branches: [jalankan-perbandingan]   # temporary: lets the editor's assistant start the test by pushing this branch
 
 permissions:
   contents: write   # only to save the result on the "perbandingan" branch
