@@ -3,6 +3,7 @@
 
   "artikelAI": true,
   "ringkasanHarian": true,
+  "ringkasanHarianCara": "hemat",
   "ringkasanSepekan": true,
   "iklan": true,
   "analitik": true,

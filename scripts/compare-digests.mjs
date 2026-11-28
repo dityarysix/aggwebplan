@@ -4,7 +4,7 @@
 // Needs ANTHROPIC_API_KEY. Run from GitHub: Actions > "Bandingkan model ringkasan" > Run workflow.
 import { mkdir, writeFile, appendFile } from 'node:fs/promises';
 import Anthropic from '@anthropic-ai/sdk';
-import { SYSTEM, SCHEMA, KINDS } from './digest.mjs';
+import { SYSTEM, SCHEMA, KINDS, economical } from './digest.mjs';
 
 const SITE = process.env.SITE_URL || 'https://jatimsepekan.com';
 const MODELS = [  // price per million tokens: input, output (prompts up to 100K tokens)
@@ -63,9 +63,29 @@ async function run(client, model, list) {
   }
 }
 
+// The economical way (cara hemat) that the daily wrap-up uses now: Opus picks the stories in a
+// short answer, Haiku writes from them. Cost is the sum of both steps.
+async function runEconomical(list) {
+  const started = Date.now();
+  const label = { id: 'claude-opus-5-5 memilih + claude-haiku-5-5 menulis', label: 'Cara hemat (Opus memilih, Haiku menulis)' };
+  try {
+    const result = await economical(KINDS.daily, list);
+    const seconds = Math.round((Date.now() - started) / 100) / 10;
+    const price = (id) => MODELS.find((m) => m.id === id);
+    const cost = result.steps.reduce((sum, st) => sum + ((st.usage.input_tokens || 0) * price(st.model).input + (st.usage.output_tokens || 0) * price(st.model).output) / 1e6, 0);
+    const usage = { input_tokens: result.steps.reduce((n, st) => n + (st.usage.input_tokens || 0), 0), output_tokens: result.steps.reduce((n, st) => n + (st.usage.output_tokens || 0), 0) };
+    const byId = new Map(list.map((c) => [c.id, c]));
+    const extra = (result.picks || []).map((p) => `  - [${p.id}] ${byId.get(p.id).article.title} (sudut: ${p.sudut})`);
+    if (!result.digest) return { model: label, error: result.reason || 'tidak lolos pemeriksaan', seconds, usage, cost, extra };
+    return { model: label, digest: result.digest, seconds, usage, cost, extra };
+  } catch (err) {
+    return { model: label, error: `${err.status || ''} ${err.message}`.trim(), seconds: Math.round((Date.now() - started) / 100) / 10 };
+  }
+}
+
 function describe(result, list) {
   const lines = [`## ${result.model.label} (${result.model.id})`, ''];
-  if (result.error) return [...lines, `**Gagal:** ${result.error}`, ''].join('\n');
+  if (result.error) return [...lines, `**Gagal:** ${result.error}`, ...(result.extra?.length ? ['', 'Berita yang dipilih Opus:', ...result.extra] : []), ''].join('\n');
   const { digest } = result;
   const ids = new Set(list.map((c) => c.id));
   const stories = new Set(digest.paragraphs.map((p) => p.story).filter((id) => id));
@@ -74,6 +94,7 @@ function describe(result, list) {
   lines.push(
     `- Biaya: **US$${result.cost.toFixed(4)}** (${result.usage.input_tokens} token masuk, ${result.usage.output_tokens} token keluar), waktu ${result.seconds} detik`,
     `- ${digest.paragraphs.length} paragraf, ${stories.size} berita dirangkum, ${words} kata${bad ? `, **${bad} nomor berita tidak valid**` : ''}`,
+    ...(result.extra?.length ? ['', 'Berita yang dipilih Opus:', ...result.extra] : []),
     '', `### Judul: ${digest.title}`, '');
   for (const p of digest.paragraphs) {
     const source = p.story && ids.has(p.story) ? list.find((c) => c.id === p.story).article : null;
@@ -87,11 +108,12 @@ if (list.length < 6) throw new Error(`only ${list.length} stories in the last 24
 const client = new Anthropic();
 const results = [];
 for (const model of MODELS) results.push(await run(client, model, list));  // one at a time
+results.push(await runEconomical(list));
 
 const now = new Date(Date.now() + 7 * 3600000).toISOString().slice(0, 16).replace('T', ' ');
 const report = [
   `# Perbandingan model: ringkasan harian (${now} WIB)`, '',
-  `Instruksi dan daftar berita sama untuk ketiga model (${list.length} kandidat, 24 jam terakhir). Tidak ada yang diterbitkan.`, '',
+  `Instruksi dan daftar berita sama untuk keempat percobaan (${list.length} kandidat, 24 jam terakhir). Tidak ada yang diterbitkan.`, '',
   '| Model | Biaya | Waktu | Paragraf | Berita dirangkum |', '|---|---|---|---|---|',
   ...results.map((r) => r.error
     ? `| ${r.model.label} | - | ${r.seconds} dtk | gagal: ${r.error} | - |`
