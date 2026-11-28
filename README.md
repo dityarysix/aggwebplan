@@ -91,7 +91,6 @@ the next hourly update.
 | `artikelAI` | AI articles from official releases on/off | `false` |
 | `ringkasanHarian` | daily wrap-up on/off | `false` |
 | `ringkasanSepekan` | weekly wrap-up on/off | `false` |
-| `ringkasanHarianCara` | how the daily wrap-up is written: `"hemat"` (Opus picks 3-4 stories, Haiku writes; about a third of the cost, falls back to `"penuh"` if the checks fail) or `"penuh"` (Opus picks and writes). The weekly wrap-up is always `penuh`. | `"penuh"` |
 | `iklan` | Google AdSense code and ads.txt on/off (removes all ads) | `false` |
 | `analitik` | Google Analytics (visitor statistics) on/off | `false` |
 | `kataTerlarang` | hide every story whose headline contains one of these words | `["judi online", "Honda"]` |

@@ -517,9 +517,7 @@ async function writeDigests(archive, digests) {
   for (const d of due) {
     const candidates = d.kind === 'daily' ? digestCandidates(archive, 24, 60) : digestCandidates(archive, 7 * 24, 100);
     if (candidates.length < 6) { console.log(`  ${DIGEST_LABEL[d.kind]}: not enough news yet`); continue; }
-    // The daily wrap-up is written the economical way (Opus picks, Haiku writes) unless kontrol.json
-    // says "penuh"; the weekly one is always written in full by Opus.
-    const written = await writeDigest(d.kind, candidates, { economical: control.ringkasanHarianCara !== 'penuh' });
+    const written = await writeDigest(d.kind, candidates);
     if (!written) continue;
     const byId = new Map(candidates.map((c) => [c.id, c.article]));
     const used = written.paragraphs.map((p) => byId.get(p.story)).filter(Boolean);
@@ -661,7 +659,6 @@ function renderReport({ sources, articles, archive, withPages, digests, columns,
       <tr><td>Catatan Sepekan terbit</td><td>${columns.length}</td></tr>
       <tr><td>Aturan blokir di kontrol.json</td><td>${blocked}</td></tr>
       <tr><td>Artikel AI / ringkasan harian / ringkasan sepekan</td><td>${onOff(control.artikelAI)} / ${onOff(control.ringkasanHarian)} / ${onOff(control.ringkasanSepekan)}</td></tr>
-      <tr><td>Cara menulis ringkasan harian</td><td>${control.ringkasanHarianCara === 'penuh' ? 'penuh (Opus memilih dan menulis)' : 'hemat (Opus memilih, Haiku menulis)'}</td></tr>
     </tbody></table>
 
     <h2>Per rubrik</h2>
