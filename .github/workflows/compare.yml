@@ -31,8 +31,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/out" && cp perbandingan/hasil.md "$RUNNER_TEMP/out/hasil.md"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git switch --orphan perbandingan
-          git rm -rf --quiet .
+          git switch --orphan perbandingan   # starts an empty branch (tracked files are removed)
           cp "$RUNNER_TEMP/out/hasil.md" hasil.md
           git add hasil.md
           git commit -q -m "Hasil perbandingan model ringkasan harian"

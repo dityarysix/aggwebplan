@@ -102,5 +102,6 @@ const report = [
 
 await mkdir('perbandingan', { recursive: true });
 await writeFile('perbandingan/hasil.md', report);
-if (process.env.GITHUB_STEP_SUMMARY) await appendFile(process.env.GITHUB_STEP_SUMMARY, report.split('\n---\n')[0]);
+// The whole report also goes into the run summary, as a second place to read it.
+if (process.env.GITHUB_STEP_SUMMARY) await appendFile(process.env.GITHUB_STEP_SUMMARY, report);
 console.log(report.split('\n---\n')[0]);
