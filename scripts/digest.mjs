@@ -6,7 +6,7 @@ import Anthropic from '@anthropic-ai/sdk';
 
 const MODEL = 'claude-opus-5-5';  // the strongest writer; about US$2.50 a month for both wrap-ups
 
-const KINDS = {
+export const KINDS = {
   daily: {
     name: 'ringkasan harian',
     paragraphs: '5 sampai 6 paragraf',
@@ -21,7 +21,7 @@ const KINDS = {
   },
 };
 
-const SYSTEM = (kind) => `Kamu adalah redaktur Jawa Timur Sepekan, situs berita mingguan Jawa Timur.
+export const SYSTEM = (kind) => `Kamu adalah redaktur Jawa Timur Sepekan, situs berita mingguan Jawa Timur.
 Tugasmu: menulis ${kind.name} dari daftar berita ${kind.period} yang diberikan.
 
 Cara memilih:
@@ -41,7 +41,7 @@ Cara menulis:
   bukan angka atau kutipan. Untuk paragraf pembuka dan penutup, isi "story" dengan 0.
 - Judul singkat dan informatif, tanpa kata-kata yang memancing klik.`;
 
-const SCHEMA = {
+export const SCHEMA = {
   type: 'object',
   properties: {
     title: { type: 'string' },

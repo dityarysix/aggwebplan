@@ -1,0 +1,39 @@
+# One-off test: writes the daily wrap-up with Haiku, Sonnet and Opus from the same stories so they
+# can be compared. Run it by hand (Actions > "Bandingkan model ringkasan" > Run workflow).
+# Nothing is published on the website: the result is saved on its own branch, "perbandingan".
+name: Bandingkan model ringkasan
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write   # only to save the result on the "perbandingan" branch
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: node scripts/compare-digests.mjs
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      - name: Save the result on the "perbandingan" branch
+        run: |
+          mkdir -p "$RUNNER_TEMP/out" && cp perbandingan/hasil.md "$RUNNER_TEMP/out/hasil.md"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch --orphan perbandingan
+          git rm -rf --quiet .
+          cp "$RUNNER_TEMP/out/hasil.md" hasil.md
+          git add hasil.md
+          git commit -q -m "Hasil perbandingan model ringkasan harian"
+          git push -f origin perbandingan
